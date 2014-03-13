@@ -44,7 +44,9 @@ namespace MvcSample
                 DefaultHandler = new MvcApplication(serviceProvider),
             };
 
-            routes.MapRoute("{area}/{controller}/{action}");
+            routes.MapRoute("{area}/{controller}/{action}"); 
+            // TODO: We can constraint here to existing or specific areas for control see below or perf
+            //routes.MapRoute("/api/{area}/{controller}/{action}");
 
             routes.MapRoute(
                 "{controller}/{action}",
