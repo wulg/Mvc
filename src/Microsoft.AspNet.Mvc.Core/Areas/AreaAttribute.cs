@@ -5,7 +5,7 @@ namespace Microsoft.AspNet.Mvc
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
     public class AreaAttribute : RouteConstraintAttribute
     {
-        public AreaAttribute(string areaName) : base("area", areaName)
+        public AreaAttribute(string areaName) : base("area", areaName, preventNonAttributedActions: true)
         {
             if (string.IsNullOrEmpty(areaName))
             {
