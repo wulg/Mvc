@@ -36,7 +36,7 @@ namespace Microsoft.AspNet.Mvc
 
             yield return describe.Transient<IRazorCompilationService, RazorCompilationService>();
             yield return describe.Transient<IVirtualPathViewFactory, VirtualPathViewFactory>();
-            yield return describe.Transient<IViewEngine, RazorViewEngine>();
+            yield return describe.Singleton<IViewEngine, RazorViewEngine>();
 
             // This is temporary until DI has some magic for it
             yield return describe.Transient<INestedProviderManager<ActionDescriptorProviderContext>,
@@ -45,6 +45,8 @@ namespace Microsoft.AspNet.Mvc
                                             NestedProviderManager<ActionInvokerProviderContext>>();
             yield return describe.Transient<INestedProvider<ActionDescriptorProviderContext>,
                                             ReflectedActionDescriptorProvider>();
+            yield return describe.Transient<INestedProvider<ActionDescriptorProviderContext>,
+                                            ReflectedRouteConstraintsActionDescriptorProvider>();
             yield return describe.Transient<INestedProvider<ActionInvokerProviderContext>,
                                             ReflectedActionInvokerProvider>();
 

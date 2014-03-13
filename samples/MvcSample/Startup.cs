@@ -44,6 +44,8 @@ namespace MvcSample
                 DefaultHandler = new MvcApplication(serviceProvider),
             };
 
+            routes.MapRoute("{area}/{controller}/{action}");
+
             routes.MapRoute(
                 "{controller}/{action}",
                 new { controller = "Home", action = "Index" });

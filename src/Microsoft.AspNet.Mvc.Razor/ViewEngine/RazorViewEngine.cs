@@ -1,17 +1,41 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Microsoft.AspNet.Mvc.Razor
 {
     public class RazorViewEngine : IViewEngine
     {
+        // TODO: These need to become user configurable
         private static readonly string[] _viewLocationFormats =
         {
-            "/Views/{1}/{0}.cshtml",
-            "/Views/Shared/{0}.cshtml",
+            "/Areas/{area}/Views/{controller}/{action}.cshtml",
+            "/Views/{controller}/{action}.cshtml",
+            "/Views/Shared/{action}.cshtml",
         };
+
+        private List<ParsedViewLocation> _viewLocations = null;
+
+        private List<ParsedViewLocation> ViewLocations
+        {
+            get
+            {
+                if (_viewLocations == null)
+                {
+                    var viewLocations = new List<ParsedViewLocation>();
+
+                    foreach (var locationFormat in _viewLocationFormats)
+                    {
+                        viewLocations.Add(new ParsedViewLocation(locationFormat));
+                    }
+
+                    _viewLocations = viewLocations;
+                }
+
+                return _viewLocations;
+            }
+        }
 
         private readonly IVirtualPathViewFactory _virtualPathFactory;
 
@@ -20,17 +44,9 @@ namespace Microsoft.AspNet.Mvc.Razor
             _virtualPathFactory = virtualPathFactory;
         }
 
-        public IEnumerable<string> ViewLocationFormats
-        {
-            get { return _viewLocationFormats; }
-        }
-
         public async Task<ViewEngineResult> FindView(object context, string viewName)
         {
             var actionContext = (ActionContext)context;
-
-            // TODO: We plan to change this on the next CR, so we don't have a strong depenedency directly on the specific
-            // type of the action descriptor
             var actionDescriptor = actionContext.ActionDescriptor;
             
             if (actionDescriptor == null)
@@ -58,18 +74,39 @@ namespace Microsoft.AspNet.Mvc.Razor
             }
             else
             {
-                var controllerName = actionDescriptor.Path;
-                var searchedLocations = new List<string>(_viewLocationFormats.Length);
-                for (int i = 0; i < _viewLocationFormats.Length; i++)
+                var controllerName = actionDescriptor.Path ?? 
+                                     actionDescriptor.RouteConstraints.
+                                     Where(c => c.RouteKey.Equals("controller", StringComparison.OrdinalIgnoreCase)).
+                                     Select(c => c.RouteValue).
+                                     Single();
+
+                var routeKvp = actionDescriptor.RouteConstraints.
+                    Where(
+                        rc =>
+                            rc.KeyHandling == RouteKeyHandling.RequireKey && !rc.RouteKey.Equals("controller") &&
+                            !rc.RouteKey.Equals("action")).
+                            Select(rc => new KeyValuePair<string, string>(rc.RouteKey, rc.RouteValue)).
+                            Concat(new[] {new KeyValuePair<string, string>("action", viewName), new KeyValuePair<string, string>("controller", controllerName)}).
+                            ToArray();
+
+                var searchedLocations = new List<string>();
+
+                for (int i = 0; i < ViewLocations.Count; i++)
                 {
-                    string path = String.Format(CultureInfo.InvariantCulture, _viewLocationFormats[i], viewName, controllerName);
-                    IView view = await _virtualPathFactory.CreateInstance(path);
-                    if (view != null)
+                    string path = ViewLocations[i].BuildPath(routeKvp);
+
+                    if (path != null)
                     {
-                        return ViewEngineResult.Found(view);
+                        IView view = await _virtualPathFactory.CreateInstance(path);
+                        if (view != null)
+                        {
+                            return ViewEngineResult.Found(view);
+                        }
+
+                        searchedLocations.Add(path);
                     }
-                    searchedLocations.Add(path);
                 }
+
                 return ViewEngineResult.NotFound(searchedLocations);
             }
         }
