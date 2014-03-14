@@ -23,7 +23,7 @@ namespace Microsoft.AspNet.Mvc.Razor
 
         private string ParseViewLocation(string viewLocation)
         {
-            var builder = new StringBuilder();
+            var formatStringBuilder = new StringBuilder();
 
             var state = ParseState.FreeText;
             int keyStartIndex = 0;
@@ -32,7 +32,7 @@ namespace Microsoft.AspNet.Mvc.Razor
 
             for (int i = 0; i < viewLocation.Length; i++)
             {
-                Char ch = viewLocation[i];
+                var ch = viewLocation[i];
                 if (ch == '{')
                 {
                     if (state == ParseState.KeyName)
@@ -41,7 +41,7 @@ namespace Microsoft.AspNet.Mvc.Razor
                     }
 
                     string freeText = viewLocation.Substring(lastTextIndex, i - lastTextIndex);
-                    builder.Append(freeText);
+                    formatStringBuilder.Append(freeText);
 
                     state = ParseState.KeyName;
                     keyStartIndex = i + 1;
@@ -61,7 +61,7 @@ namespace Microsoft.AspNet.Mvc.Razor
                     }
 
                     string keyText = "{" + keyIndex.ToString("D") + "}";
-                    builder.Append(keyText);
+                    formatStringBuilder.Append(keyText);
                     lastTextIndex = i + 1;
 
                     string key = viewLocation.Substring(keyStartIndex, i - keyStartIndex);
@@ -81,10 +81,10 @@ namespace Microsoft.AspNet.Mvc.Razor
             if (lastTextIndex < viewLocation.Length)
             {
                 string trailingText = viewLocation.Substring(lastTextIndex);
-                builder.Append(trailingText);
+                formatStringBuilder.Append(trailingText);
             }
 
-            return builder.ToString();
+            return formatStringBuilder.ToString();
         }
 
         private void ThrowInvalidViewLocation()

@@ -14,7 +14,6 @@ namespace Microsoft.AspNet.Mvc
 
         public string RouteKey { get; private set; }
         public string RouteValue { get; private set; }
-
         public bool PreventNonAttributedActions { get; private set; }
     }
 }

@@ -32,6 +32,7 @@ namespace Microsoft.AspNet.Mvc.Razor
         private static readonly string[] _defaultViewLocationFormats =
         {
             "/Areas/{area}/Views/{controller}/{action}.cshtml",
+            "/Areas/{area}/Views/Shared/{action}.cshtml",
             "/Views/{controller}/{action}.cshtml",
             "/Views/Shared/{action}.cshtml",
         };
@@ -93,10 +94,11 @@ namespace Microsoft.AspNet.Mvc.Razor
         public virtual KeyValuePair<string, string>[] BuildKeyValuePairs(ActionDescriptor actionDescriptor, string viewName)
         {
             var controllerName = actionDescriptor.Path ??
-                     actionDescriptor.RouteConstraints.
-                     Where(c => c.RouteKey.Equals("controller", StringComparison.OrdinalIgnoreCase)).
-                     Select(c => c.RouteValue).
-                     Single();
+                                 actionDescriptor.
+                                     RouteConstraints.
+                                     Where(c => c.RouteKey.Equals("controller", StringComparison.OrdinalIgnoreCase)).
+                                     Select(c => c.RouteValue).
+                                     Single();
 
             var routeKvp = actionDescriptor.RouteConstraints.
                 Where(rc =>
