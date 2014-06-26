@@ -25,84 +25,83 @@ namespace Microsoft.AspNet.Mvc
         {
             var describe = new ServiceDescriber(configuration);
 
-            yield return describe.Transient<IControllerFactory, DefaultControllerFactory>();
-            yield return describe.Singleton<IControllerActivator, DefaultControllerActivator>();
-            yield return describe.Scoped<IActionSelector, DefaultActionSelector>();
-            yield return describe.Transient<IActionInvokerFactory, ActionInvokerFactory>();
-            yield return describe.Transient<IControllerAssemblyProvider, DefaultControllerAssemblyProvider>();
-            yield return describe.Transient<IActionDiscoveryConventions, DefaultActionDiscoveryConventions>();
+            return new IServiceDescriptor[] {
+                describe.Transient<IControllerFactory, DefaultControllerFactory>(),
+                describe.Singleton<IControllerActivator, DefaultControllerActivator>(),
+                describe.Scoped<IActionSelector, DefaultActionSelector>(),
+                describe.Transient<IActionInvokerFactory, ActionInvokerFactory>(),
+                describe.Transient<IControllerAssemblyProvider, DefaultControllerAssemblyProvider>(),
+                describe.Transient<IActionDiscoveryConventions, DefaultActionDiscoveryConventions>(),
 
-            yield return describe.Instance<IMvcRazorHost>(new MvcRazorHost(typeof(RazorView).FullName));
+                describe.Instance<IMvcRazorHost>(new MvcRazorHost(typeof(RazorView).FullName)),
 
-            yield return describe.Transient<ICompilationService, RoslynCompilationService>();
+                describe.Transient<ICompilationService, RoslynCompilationService>(),
 
-            yield return describe.Transient<IRazorCompilationService, RazorCompilationService>();
-            yield return describe.Transient<IVirtualPathViewFactory, VirtualPathViewFactory>();
-            yield return describe.Scoped<IViewEngine, RazorViewEngine>();
+                describe.Transient<IRazorCompilationService, RazorCompilationService>(),
+                describe.Transient<IVirtualPathViewFactory, VirtualPathViewFactory>(),
+                describe.Scoped<IViewEngine, RazorViewEngine>(),
 
-            yield return describe.Transient<INestedProvider<ActionDescriptorProviderContext>,
-                                            ReflectedActionDescriptorProvider>();
-            yield return describe.Transient<INestedProvider<ActionInvokerProviderContext>,
-                                            ReflectedActionInvokerProvider>();
-            yield return describe.Singleton<IActionDescriptorsCollectionProvider, 
-                DefaultActionDescriptorsCollectionProvider>();
+                describe.Transient<INestedProvider<ActionDescriptorProviderContext>,
+                                            ReflectedActionDescriptorProvider>(),
+                describe.Transient<INestedProvider<ActionInvokerProviderContext>,
+                                            ReflectedActionInvokerProvider>(),
+                describe.Singleton<IActionDescriptorsCollectionProvider,
+                                            DefaultActionDescriptorsCollectionProvider>(),
 
-            yield return describe.Transient<IModelMetadataProvider, DataAnnotationsModelMetadataProvider>();
-            yield return describe.Scoped<IActionBindingContextProvider, DefaultActionBindingContextProvider>();
+                describe.Transient<IModelMetadataProvider, DataAnnotationsModelMetadataProvider>(),
+                describe.Scoped<IActionBindingContextProvider, DefaultActionBindingContextProvider>(),
 
-            yield return describe.Transient<IValueProviderFactory, RouteValueValueProviderFactory>();
-            yield return describe.Transient<IValueProviderFactory, QueryStringValueProviderFactory>();
-            yield return describe.Transient<IValueProviderFactory, FormValueProviderFactory>();
+                describe.Transient<IValueProviderFactory, RouteValueValueProviderFactory>(),
+                describe.Transient<IValueProviderFactory, QueryStringValueProviderFactory>(),
+                describe.Transient<IValueProviderFactory, FormValueProviderFactory>(),
 
-            yield return describe.Transient<IModelBinder, TypeConverterModelBinder>();
-            yield return describe.Transient<IModelBinder, TypeMatchModelBinder>();
-            yield return describe.Transient<IModelBinder, GenericModelBinder>();
-            yield return describe.Transient<IModelBinder, MutableObjectModelBinder>();
-            yield return describe.Transient<IModelBinder, ComplexModelDtoModelBinder>();
+                describe.Transient<IModelBinder, TypeConverterModelBinder>(),
+                describe.Transient<IModelBinder, TypeMatchModelBinder>(),
+                describe.Transient<IModelBinder, GenericModelBinder>(),
+                describe.Transient<IModelBinder, MutableObjectModelBinder>(),
+                describe.Transient<IModelBinder, ComplexModelDtoModelBinder>(),
 
-            yield return describe.Transient<IInputFormatter, JsonInputFormatter>();
-            yield return describe.Transient<IInputFormatterProvider, TempInputFormatterProvider>();
+                describe.Transient<IInputFormatter, JsonInputFormatter>(),
+                describe.Transient<IInputFormatterProvider, TempInputFormatterProvider>(),
 
-            yield return describe.Transient<INestedProvider<FilterProviderContext>, DefaultFilterProvider>();
+                describe.Transient<INestedProvider<FilterProviderContext>, DefaultFilterProvider>(),
 
-            yield return describe.Transient<IModelValidatorProvider, DataAnnotationsModelValidatorProvider>();
-            yield return describe.Transient<IModelValidatorProvider, DataMemberModelValidatorProvider>();
+                describe.Transient<IModelValidatorProvider, DataAnnotationsModelValidatorProvider>(),
+                describe.Transient<IModelValidatorProvider, DataMemberModelValidatorProvider>(),
 
-            yield return describe.Scoped<IUrlHelper, UrlHelper>();
+                describe.Scoped<IUrlHelper, UrlHelper>(),
 
-            yield return describe.Transient<IViewComponentSelector, DefaultViewComponentSelector>();
-            yield return describe.Transient<IViewComponentInvokerFactory, DefaultViewComponentInvokerFactory>();
-            yield return describe.Transient<INestedProvider<ViewComponentInvokerProviderContext>, 
-                DefaultViewComponentInvokerProvider>();
-            yield return describe.Transient<IViewComponentHelper, DefaultViewComponentHelper>();
+                describe.Transient<IViewComponentSelector, DefaultViewComponentSelector>(),
+                describe.Transient<IViewComponentInvokerFactory, DefaultViewComponentInvokerFactory>(),
+                describe.Transient<INestedProvider<ViewComponentInvokerProviderContext>,
+                                       DefaultViewComponentInvokerProvider>(),
+                describe.Transient<IViewComponentHelper, DefaultViewComponentHelper>(),
 
-            yield return describe.Transient<IAuthorizationService, DefaultAuthorizationService>();
-            yield return describe.Singleton<IClaimUidExtractor, DefaultClaimUidExtractor>();
-            yield return describe.Singleton<AntiForgery, AntiForgery>();
-            yield return describe.Singleton<IAntiForgeryAdditionalDataProvider, 
-                DefaultAntiForgeryAdditionalDataProvider>(); 
+                describe.Transient<IAuthorizationService, DefaultAuthorizationService>(),
+                describe.Singleton<IClaimUidExtractor, DefaultClaimUidExtractor>(),
+                describe.Singleton<AntiForgery, AntiForgery>(),
+                describe.Singleton<IAntiForgeryAdditionalDataProvider,
+                                    DefaultAntiForgeryAdditionalDataProvider>(),
 
-            yield return
-               describe.Describe(
+                describe.Describe(
                    typeof(INestedProviderManager<>),
                    typeof(NestedProviderManager<>),
                    implementationInstance: null,
-                   lifecycle: LifecycleKind.Transient);
+                   lifecycle: LifecycleKind.Transient),
 
-            yield return
                 describe.Describe(
                     typeof(INestedProviderManagerAsync<>),
                     typeof(NestedProviderManagerAsync<>),
                     implementationInstance: null,
-                    lifecycle: LifecycleKind.Transient);
+                    lifecycle: LifecycleKind.Transient),
 
-            yield return describe.Transient<IHtmlHelper, HtmlHelper>();
-            yield return
+                describe.Transient<IHtmlHelper, HtmlHelper>(),
+
                 describe.Describe(
                     typeof(IHtmlHelper<>),
                     typeof(HtmlHelper<>),
                     implementationInstance: null,
-                    lifecycle: LifecycleKind.Transient);
+                    lifecycle: LifecycleKind.Transient)};
         }
     }
 }
