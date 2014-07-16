@@ -1,0 +1,3 @@
+{
+    "TestNames" : ["Throughput_BasicHttp_IIS_Coreclr", "Memory_BasicMvc_IIS_Desktop"] 
+}
