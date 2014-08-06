@@ -389,6 +389,7 @@ namespace Microsoft.AspNet.Mvc.Razor
             return results.Document.Flatten().ToList();
         }
 
+        // TODO: Fix
         private sealed class TestMvcCSharpRazorCodeParser : MvcRazorCodeParser
         {
             public TestMvcCSharpRazorCodeParser()

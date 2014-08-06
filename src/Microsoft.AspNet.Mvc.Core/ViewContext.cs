@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.IO;
+using System.Collections.Generic;
 using Microsoft.AspNet.Mvc.Rendering;
 
 namespace Microsoft.AspNet.Mvc
@@ -14,6 +15,8 @@ namespace Microsoft.AspNet.Mvc
         private readonly FormContext _defaultFormContext = new FormContext();
 
         private FormContext _formContext;
+        private Stack<TextWriter> _writerStack;
+        private TextWriter _currentWriter;
 
         public ViewContext(
             [NotNull] ActionContext actionContext,
@@ -24,12 +27,15 @@ namespace Microsoft.AspNet.Mvc
         {
             View = view;
             ViewData = viewData;
-            Writer = writer;
 
             _formContext = _defaultFormContext;
             ClientValidationEnabled = true;
             ValidationSummaryMessageElement = "span";
             ValidationMessageElement = "span";
+
+            _writerStack = new Stack<TextWriter>();
+            _currentWriter = writer;
+            _writerStack.Push(writer);
         }
 
         public ViewContext(
@@ -47,7 +53,10 @@ namespace Microsoft.AspNet.Mvc
 
             View = view;
             ViewData = viewData;
-            Writer = writer;
+
+            _writerStack = new Stack<TextWriter>();
+            _currentWriter = writer;
+            _writerStack.Push(writer);
         }
 
         public virtual FormContext FormContext
@@ -102,7 +111,27 @@ namespace Microsoft.AspNet.Mvc
 
         public ViewDataDictionary ViewData { get; set; }
 
-        public TextWriter Writer { get; set; }
+        public TextWriter Writer
+        {
+            get
+            {
+                return _currentWriter;
+            }
+        }
+
+        // TODO: Move this somewhere else, this is not a responsibility of the ViewContext
+        public void UseWriter(TextWriter writer)
+        {
+            _currentWriter = writer;
+            _writerStack.Push(writer);
+        }
+
+        // TODO: Move this somewhere else, this is not a responsibility of the ViewContext
+        public void NextWriter()
+        {
+            _writerStack.Pop();
+            _currentWriter = _writerStack.Peek();
+        }
 
         public FormContext GetFormContextForClientValidation()
         {

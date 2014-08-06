@@ -3,6 +3,7 @@
 
 using System.Globalization;
 using Microsoft.AspNet.Mvc.Razor.Directives;
+using Microsoft.AspNet.Razor;
 using Microsoft.AspNet.Razor.Generator;
 using Microsoft.AspNet.Razor.Generator.Compiler;
 using Microsoft.AspNet.Razor.Generator.Compiler.CSharp;

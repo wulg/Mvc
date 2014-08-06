@@ -15,12 +15,12 @@ namespace Microsoft.AspNet.Mvc.Razor
         {
             if (string.IsNullOrEmpty(typeName))
             {
-                throw new ArgumentException(Resources.ArgumentCannotBeNullOrEmpy, "typeName");
+                throw new ArgumentException(Resources.ArgumentCannotBeNullOrEmpty, "typeName");
             }
 
             if (string.IsNullOrEmpty(memberName))
             {
-                throw new ArgumentException(Resources.ArgumentCannotBeNullOrEmpy, "memberName");
+                throw new ArgumentException(Resources.ArgumentCannotBeNullOrEmpty, "memberName");
             }
 
             TypeName = typeName;

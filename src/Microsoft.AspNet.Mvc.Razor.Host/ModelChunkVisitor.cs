@@ -6,8 +6,11 @@ using Microsoft.AspNet.Razor.Generator.Compiler.CSharp;
 
 namespace Microsoft.AspNet.Mvc.Razor
 {
-    public class ModelChunkVisitor : MvcCSharpCodeVisitor
+    public class ModelChunkVisitor : MvcCodeVisitor
     {
+        // TODO: Should we make this internal?
+        public static readonly string MvcModelVisitorStateMember = "__mvcModelType";
+
         public ModelChunkVisitor([NotNull] CSharpCodeWriter writer,
                                  [NotNull] CodeGeneratorContext context)
             : base(writer, context)
@@ -21,6 +24,8 @@ namespace Microsoft.AspNet.Mvc.Razor
             Writer.Write(chunk.BaseType).Write("<");
             csharpVisitor.CreateExpressionCodeMapping(chunk.ModelType, chunk);
             Writer.Write(">");
+
+            Context.VisitorState[MvcModelVisitorStateMember] = chunk.ModelType;
         }
     }
 }

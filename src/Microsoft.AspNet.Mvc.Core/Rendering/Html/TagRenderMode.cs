@@ -8,6 +8,7 @@ namespace Microsoft.AspNet.Mvc.Rendering
         Normal,
         StartTag,
         EndTag,
-        SelfClosing
+        SelfClosing,
+        Body
     }
 }

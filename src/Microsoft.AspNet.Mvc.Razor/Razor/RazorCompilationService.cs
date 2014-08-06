@@ -22,11 +22,11 @@ namespace Microsoft.AspNet.Mvc.Razor
 
         public RazorCompilationService(IApplicationEnvironment environment,
                                        ICompilationService compilationService,
-                                       IMvcRazorHost razorHost)
+                                       IMvcRazorHostProvider razorHostProvider)
         {
             _environment = environment;
             _baseCompilationService = compilationService;
-            _razorHost = razorHost;
+            _razorHost = razorHostProvider.GetHost();
             _appRoot = EnsureTrailingSlash(environment.ApplicationBasePath);
         }
 

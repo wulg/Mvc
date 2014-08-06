@@ -10,6 +10,8 @@ using Microsoft.AspNet.Razor.Generator;
 using Microsoft.AspNet.Razor.Generator.Compiler;
 using Microsoft.AspNet.Razor.Parser;
 using Microsoft.Framework.Runtime;
+using Microsoft.AspNet.Razor.TagHelpers;
+using Microsoft.Framework.OptionsModel;
 
 namespace Microsoft.AspNet.Mvc.Razor
 {
@@ -45,9 +47,6 @@ namespace Microsoft.AspNet.Mvc.Razor
         public MvcRazorHost(IApplicationEnvironment appEnvironment)
             : this(appEnvironment.ApplicationBasePath,
                    new PhysicalFileSystem(appEnvironment.ApplicationBasePath))
-        {
-        }
-
         /// <summary>
         /// Initializes a new instance of <see cref="MvcRazorHost"/> at the specified application root
         /// and <paramref name="fileSystem"/>.
@@ -66,17 +65,9 @@ namespace Microsoft.AspNet.Mvc.Razor
 
             DefaultBaseClass = BaseType + '<' + DefaultModel + '>';
             DefaultNamespace = "Asp";
-            GeneratedClassContext = new GeneratedClassContext(
-                executeMethodName: "ExecuteAsync",
-                writeMethodName: "Write",
-                writeLiteralMethodName: "WriteLiteral",
-                writeToMethodName: "WriteTo",
-                writeLiteralToMethodName: "WriteLiteralTo",
-                templateTypeName: "Microsoft.AspNet.Mvc.Razor.HelperResult",
-                defineSectionMethodName: "DefineSection")
-            {
-                ResolveUrlMethodName = "Href"
-            };
+            GeneratedClassContext = new MvcGeneratedClassContext();
+
+            TagHelperDescriptorResolver = tagHelperDescriptorResolver;
 
             foreach (var ns in _defaultNamespaces)
             {

@@ -8,7 +8,7 @@ using Microsoft.AspNet.Razor.Generator.Compiler.CSharp;
 
 namespace Microsoft.AspNet.Mvc.Razor
 {
-    public class InjectChunkVisitor : MvcCSharpCodeVisitor
+    public class InjectChunkVisitor : MvcCodeVisitor
     {
         private readonly List<InjectChunk> _injectChunks = new List<InjectChunk>();
         private readonly string _activateAttribute;

@@ -13,17 +13,17 @@ namespace Microsoft.AspNet.Mvc.Razor.Host
         /// <summary>
         /// Argument cannot be null or empty.
         /// </summary>
-        internal static string ArgumentCannotBeNullOrEmpy
+        internal static string ArgumentCannotBeNullOrEmpty
         {
-            get { return GetString("ArgumentCannotBeNullOrEmpy"); }
+            get { return GetString("ArgumentCannotBeNullOrEmpty"); }
         }
 
         /// <summary>
         /// Argument cannot be null or empty.
         /// </summary>
-        internal static string FormatArgumentCannotBeNullOrEmpy()
+        internal static string FormatArgumentCannotBeNullOrEmpty()
         {
-            return GetString("ArgumentCannotBeNullOrEmpy");
+            return GetString("ArgumentCannotBeNullOrEmpty");
         }
 
         /// <summary>
@@ -59,6 +59,22 @@ namespace Microsoft.AspNet.Mvc.Razor.Host
         }
 
         /// <summary>
+        /// The 'inherits' keyword is not allowed when a '{0}' keyword is used.
+        /// </summary>
+        internal static string MvcRazorCodeParser_CannotHaveModelAndInheritsKeyword1
+        {
+            get { return GetString("MvcRazorCodeParser_CannotHaveModelAndInheritsKeyword1"); }
+        }
+
+        /// <summary>
+        /// The 'inherits' keyword is not allowed when a '{0}' keyword is used.
+        /// </summary>
+        internal static string FormatMvcRazorCodeParser_CannotHaveModelAndInheritsKeyword1(object p0)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("MvcRazorCodeParser_CannotHaveModelAndInheritsKeyword1"), p0);
+        }
+
+        /// <summary>
         /// A property name must be specified when using the '{0}' statement. Format for a '{0}' statement is '@{0} &lt;Type Name&gt; &lt;Property Name&gt;'.
         /// </summary>
         internal static string MvcRazorCodeParser_InjectDirectivePropertyNameRequired
@@ -91,6 +107,22 @@ namespace Microsoft.AspNet.Mvc.Razor.Host
         }
 
         /// <summary>
+        /// The '{0}' keyword must be followed by a type name on the same line.
+        /// </summary>
+        internal static string MvcRazorCodeParser_ModelKeywordMustBeFollowedByTypeName
+        {
+            get { return GetString("MvcRazorCodeParser_ModelKeywordMustBeFollowedByTypeName"); }
+        }
+
+        /// <summary>
+        /// The '{0}' keyword must be followed by a type name on the same line.
+        /// </summary>
+        internal static string FormatMvcRazorCodeParser_ModelKeywordMustBeFollowedByTypeName(object p0)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("MvcRazorCodeParser_ModelKeywordMustBeFollowedByTypeName"), p0);
+        }
+
+        /// <summary>
         /// Only one '{0}' statement is allowed in a file.
         /// </summary>
         internal static string MvcRazorCodeParser_OnlyOneModelStatementIsAllowed
@@ -104,6 +136,22 @@ namespace Microsoft.AspNet.Mvc.Razor.Host
         internal static string FormatMvcRazorCodeParser_OnlyOneModelStatementIsAllowed(object p0)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("MvcRazorCodeParser_OnlyOneModelStatementIsAllowed"), p0);
+        }
+
+        /// <summary>
+        /// Only one '{0}' statement is allowed in a file.
+        /// </summary>
+        internal static string MvcRazorCodeParser_OnlyOneModelStatementIsAllowed1
+        {
+            get { return GetString("MvcRazorCodeParser_OnlyOneModelStatementIsAllowed1"); }
+        }
+
+        /// <summary>
+        /// Only one '{0}' statement is allowed in a file.
+        /// </summary>
+        internal static string FormatMvcRazorCodeParser_OnlyOneModelStatementIsAllowed1(object p0)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("MvcRazorCodeParser_OnlyOneModelStatementIsAllowed1"), p0);
         }
 
         private static string GetString(string name, params string[] formatterNames)

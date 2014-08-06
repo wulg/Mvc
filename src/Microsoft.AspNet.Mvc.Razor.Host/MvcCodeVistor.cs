@@ -2,13 +2,14 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using Microsoft.AspNet.Razor.Generator;
+using Microsoft.AspNet.Razor.Generator.Compiler;
 using Microsoft.AspNet.Razor.Generator.Compiler.CSharp;
 
 namespace Microsoft.AspNet.Mvc.Razor
 {
-    public abstract class MvcCSharpCodeVisitor : MvcCSharpChunkVisitor
+    public abstract class MvcCodeVisitor : MvcCSharpChunkVisitor
     {
-        public MvcCSharpCodeVisitor([NotNull] CSharpCodeWriter writer,
+        public MvcCodeVisitor([NotNull] CSharpCodeWriter writer,
                                     [NotNull] CodeGeneratorContext context)
             : base(writer, context)
         {

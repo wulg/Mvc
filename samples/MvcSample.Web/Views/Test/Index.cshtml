@@ -1,0 +1,62 @@
+﻿@{
+    Layout = null;
+}
+
+@using MvcSample.Web.Models
+
+@model User
+
+@taghelper "MvcSample.Web"
+@*@removetaghelper "MvcSample.Web, InputTagHelper"
+@removetaghelper "MvcSample.Web, MvcSample.Web.ScriptTagHelper"*@
+
+<form action="index" controller="test">
+    Inside of Foo
+    <div>
+        <input for="Name" repeat-model="Age" />
+        HELLO
+    </div>
+    <p>
+        <strong>Colorful One for Address:</strong>
+        <input for="Address" style="color:red;font-size:3em;" />
+    </p>
+
+    <foo>This should never be seen, it should be replaced.</foo>
+    <h1><label body="Here is the time: @DateTime.Now" /></h1>
+
+    <tag-cloud count="15" />
+
+    <h2>Primitive Testing: </h2>
+    <section>
+        <section style="float:left;">
+            <p style="text-align:center;"><em>Defaults</em></p>
+            <primitive charval="a" />
+        </section>
+        <section style="float:left;">
+            <p style="text-align:center;"><em>Filled</em></p>
+            <primitive boolval="true"
+                       byteval="8"
+                       charval="z"
+                       decimalval="9.1m"
+                       doubleval="1.337"
+                       floatval="1.234f"
+                       intval="-4321"
+                       longval="-123456789"
+                       sbyteval="3"
+                       shortval="-6"
+                       uintval="2"
+                       ulongval="987654321"
+                       ushortval="6"
+                       stringval="Hello World"
+                       objectval="System.Char.MaxValue" />
+        </section>
+    </section>
+
+    <script>
+        function foo() {
+            console.log("Hello World.");
+        }
+
+        foo();
+    </script>
+</form>
