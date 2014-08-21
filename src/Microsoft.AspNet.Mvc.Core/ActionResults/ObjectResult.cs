@@ -137,22 +137,20 @@ namespace Microsoft.AspNet.Mvc
                                                             IEnumerable<IOutputFormatter> formatters,
                                                             IEnumerable<MediaTypeHeaderValue> sortedAcceptHeaders)
         {
-            IOutputFormatter selectedFormatter = null;
             foreach (var contentType in sortedAcceptHeaders)
             {
                 // Loop through each of the formatters and see if any one will support this 
                 // mediaType Value. 
-                selectedFormatter = formatters.FirstOrDefault(
-                                                    formatter =>
-                                                        formatter.CanWriteResult(formatterContext, contentType));
-                if (selectedFormatter != null)
+                foreach (var formatter in formatters)
                 {
-                    // we found our match. 
-                    break;
+                    if(formatter.CanWriteResult(formatterContext, contentType))
+                    {
+                        return formatter;
+                    }
                 }
             }
 
-            return selectedFormatter;
+            return null;
         }
 
         public virtual IOutputFormatter SelectFormatterUsingAnyAcceptableContentType(
@@ -160,12 +158,19 @@ namespace Microsoft.AspNet.Mvc
                                                             IEnumerable<IOutputFormatter> formatters,
                                                             IEnumerable<MediaTypeHeaderValue> acceptableContentTypes)
         {
-            var selectedFormatter = formatters.FirstOrDefault(
-                                            formatter => 
-                                                    acceptableContentTypes
-                                                    .Any(contentType =>
-                                                            formatter.CanWriteResult(formatterContext, contentType)));
-            return selectedFormatter;
+            foreach (var formatter in formatters)
+            {
+                foreach (var acceptedContentType in acceptableContentTypes)
+                {
+                    if(formatter.CanWriteResult(formatterContext, acceptedContentType))
+                    {
+                        return formatter;
+                    }
+                }
+
+            }
+
+            return null;
         }
 
         private static MediaTypeWithQualityHeaderValue[] SortMediaTypeWithQualityHeaderValues
