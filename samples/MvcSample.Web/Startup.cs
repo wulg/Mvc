@@ -1,5 +1,6 @@
 using System;
 using Microsoft.AspNet.Builder;
+using Microsoft.AspNet.Mvc;
 using Microsoft.AspNet.Routing;
 using Microsoft.Framework.ConfigurationModel;
 using Microsoft.Framework.DependencyInjection;
@@ -19,14 +20,14 @@ namespace MvcSample.Web
         public void Configure(IBuilder app)
         {
             app.UseFileServer();
+
 #if NET45
             var configuration = new Configuration()
-                                    .AddJsonFile(@"App_Data\config.json")
-                                    .AddEnvironmentVariables();
-
+                                        .AddJsonFile(@"App_Data\config.json")
+                                        .AddEnvironmentVariables();
             string diSystem;
 
-            if (configuration.TryGet("DependencyInjection", out diSystem) && 
+            if (configuration.TryGet("DependencyInjection", out diSystem) &&
                 diSystem.Equals("AutoFac", StringComparison.OrdinalIgnoreCase))
             {
                 app.UseMiddleware<MonitoringMiddlware>();
@@ -36,8 +37,11 @@ namespace MvcSample.Web
                 services.AddMvc();
                 services.AddSingleton<PassThroughAttribute>();
                 services.AddSingleton<UserNameService>();
-                services.AddTransient<ITestService, TestService>();                
+                services.AddTransient<ITestService, TestService>();
                 services.Add(OptionsServices.GetDefaultServices());
+                // Setup services with a test AssemblyProvider so that only the
+                // sample's assemblies are loaded
+                services.AddTransient<IControllerAssemblyProvider, TestAssemblyProvider<Startup>>();
 
                 // Create the autofac container 
                 ContainerBuilder builder = new ContainerBuilder();
@@ -63,6 +67,9 @@ namespace MvcSample.Web
                     services.AddSingleton<PassThroughAttribute>();
                     services.AddSingleton<UserNameService>();
                     services.AddTransient<ITestService, TestService>();
+                    // Setup services with a test AssemblyProvider so that only the
+                    // sample's assemblies are loaded
+                    services.AddTransient<IControllerAssemblyProvider, TestAssemblyProvider<Startup>>();
                 });
             }
 
