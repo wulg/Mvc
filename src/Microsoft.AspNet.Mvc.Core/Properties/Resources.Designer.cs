@@ -1275,7 +1275,7 @@ namespace Microsoft.AspNet.Mvc.Core
         }
 
         /// <summary>
-        /// Unable to find the required services. Please add all the required services by calling '{0}' inside the call to '{1}' or before calling '{2}' in the application startup code.
+        /// Unable to find the required services. Please add all the required services by calling '{0}' inside the call to '{1}' or '{2}' in the application startup code.
         /// </summary>
         internal static string UnableToFindServices
         {
@@ -1283,7 +1283,7 @@ namespace Microsoft.AspNet.Mvc.Core
         }
 
         /// <summary>
-        /// Unable to find the required services. Please add all the required services by calling '{0}' inside the call to '{1}' or before calling '{2}' in the application startup code.
+        /// Unable to find the required services. Please add all the required services by calling '{0}' inside the call to '{1}' or '{2}' in the application startup code.
         /// </summary>
         internal static string FormatUnableToFindServices(object p0, object p1, object p2)
         {
