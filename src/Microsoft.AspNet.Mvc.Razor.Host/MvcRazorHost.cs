@@ -31,6 +31,7 @@ namespace Microsoft.AspNet.Mvc.Razor
             new InjectChunk("Microsoft.AspNet.Mvc.Rendering.IHtmlHelper<TModel>", "Html"),
             new InjectChunk("Microsoft.AspNet.Mvc.IViewComponentHelper", "Component"),
             new InjectChunk("Microsoft.AspNet.Mvc.IUrlHelper", "Url"),
+            new InjectChunk("Microsoft.AspNet.Mvc.Razor.TagHelperRenderingHelper", "__tagHelperRenderer"),
         };
 
         private readonly string _appRoot;
