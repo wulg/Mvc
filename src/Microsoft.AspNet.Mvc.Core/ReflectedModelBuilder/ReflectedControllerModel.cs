@@ -23,6 +23,13 @@ namespace Microsoft.AspNet.Mvc.ReflectedModelBuilder
 
             Filters = Attributes.OfType<IFilter>().ToList();
             RouteConstraints = Attributes.OfType<RouteConstraintAttribute>().ToList();
+            ControllerProperties = controllerType.GetRuntimeProperties()
+                                   .Where(property =>
+                                          property.GetIndexParameters().Length == 0 &&
+                                          property.SetMethod != null &&
+                                          !property.SetMethod.IsStatic)
+                                   .Select(property => new ReflectedPropertyModel(property))
+                                   .ToList();
 
             var routeTemplateAttribute = Attributes.OfType<IRouteTemplateProvider>().FirstOrDefault();
             if (routeTemplateAttribute != null)
@@ -36,6 +43,8 @@ namespace Microsoft.AspNet.Mvc.ReflectedModelBuilder
         }
 
         public List<ReflectedActionModel> Actions { get; private set; }
+
+        public List<ReflectedPropertyModel> ControllerProperties { get; private set; }
 
         public List<object> Attributes { get; private set; }
 

@@ -5,7 +5,7 @@ using Microsoft.Framework.ConfigurationModel;
 using Microsoft.Framework.DependencyInjection;
 using MvcSample.Web.Filters;
 using MvcSample.Web.Services;
-
+using Microsoft.AspNet.Mvc.ModelBinding;
 #if NET45 
 using Autofac;
 using Microsoft.Framework.DependencyInjection.Autofac;
@@ -63,6 +63,7 @@ namespace MvcSample.Web
                     services.AddSingleton<PassThroughAttribute>();
                     services.AddSingleton<UserNameService>();
                     services.AddTransient<ITestService, TestService>();
+                    services.AddTransient<IModelMetadataProvider, EmptyModelMetadataProvider>();
                 });
             }
 
