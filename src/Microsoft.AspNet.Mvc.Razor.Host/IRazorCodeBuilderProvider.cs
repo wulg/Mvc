@@ -6,8 +6,7 @@ namespace Microsoft.AspNet.Mvc.Razor
 {
     public interface IRazorCodeBuilderProvider
     {
-	    CodeBuilder GetCodeBuilder(CodeBuilder incomingCodeBuilder, 
-                                   MvcRazorHostOptions options, 
+	    CodeBuilder GetCodeBuilder(CodeBuilder incomingCodeBuilder,
                                    CodeGeneratorContext context);
     }
 }

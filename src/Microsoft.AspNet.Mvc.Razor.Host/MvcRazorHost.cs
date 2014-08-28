@@ -44,9 +44,13 @@ namespace Microsoft.AspNet.Mvc.Razor
         /// <param name="appEnvironment"/>.
         /// </summary>
         /// <param name="appEnvironment">Contains information about the executing application.</param>
-        public MvcRazorHost(IApplicationEnvironment appEnvironment)
+        public MvcRazorHost(IApplicationEnvironment appEnvironment,
+                            ITagHelperDescriptorResolver tagHelperDescriptorResolver)
             : this(appEnvironment.ApplicationBasePath,
+                   tagHelperDescriptorResolver,
                    new PhysicalFileSystem(appEnvironment.ApplicationBasePath))
+        {
+        }
         /// <summary>
         /// Initializes a new instance of <see cref="MvcRazorHost"/> at the specified application root
         /// and <paramref name="fileSystem"/>.
@@ -56,6 +60,7 @@ namespace Microsoft.AspNet.Mvc.Razor
         /// A <see cref="IFileSystem"/> rooted at the <paramref name="applicationBasePath"/>.
         /// </param>
         protected internal MvcRazorHost(string applicationBasePath,
+                                        ITagHelperDescriptorResolver tagHelperDescriptorResolver,
                                         IFileSystem fileSystem)
             : base(new CSharpRazorCodeLanguage())
         {
