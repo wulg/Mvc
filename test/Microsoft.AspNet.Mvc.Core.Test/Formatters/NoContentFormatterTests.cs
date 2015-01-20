@@ -36,11 +36,11 @@ namespace Microsoft.AspNet.Mvc.Test
         }
 
         [Theory]
-        [MemberData("OutputFormatterContextValues_CanWriteType")]
-        public void CanWriteResult_ReturnsTrueOnlyIfTheValueIsNull(object value,
-                                                                   bool declaredTypeAsString,
-                                                                   bool expectedCanwriteResult,
-                                                                   bool useNonNullContentType)
+        [MemberData(nameof(OutputFormatterContextValues_CanWriteType))]
+        public void CanWriteResult_ByDefault_ReturnsTrue_IfTheValueIsNull(object value,
+                                                                          bool declaredTypeAsString,
+                                                                          bool expectedCanwriteResult,
+                                                                          bool useNonNullContentType)
         {
             // Arrange 
             var typeToUse = declaredTypeAsString ? typeof(string) : typeof(object);
@@ -51,7 +51,59 @@ namespace Microsoft.AspNet.Mvc.Test
                 ActionContext = null,
             };
             var contetType = useNonNullContentType ? MediaTypeHeaderValue.Parse("text/plain") : null;
-            var formatter = new NoContentFormatter();
+            var formatter = new HttpNoContentOutputFormatter();
+
+            // Act
+            var actualCanWriteResult = formatter.CanWriteResult(formatterContext, contetType);
+
+            // Assert
+            Assert.Equal(expectedCanwriteResult, actualCanWriteResult);
+        }
+
+        [Theory]
+        [InlineData(typeof(void))]
+        [InlineData(typeof(Task))]
+        public void CanWriteResult_ReturnsTrue_IfReturnTypeIsVoidOrTask(Type declaredType)
+        {
+            // Arrange 
+            var formatterContext = new OutputFormatterContext()
+            {
+                Object = "Something non null.",
+                DeclaredType = declaredType,
+                ActionContext = null,
+            };
+            var contetType = MediaTypeHeaderValue.Parse("text/plain");
+            var formatter = new HttpNoContentOutputFormatter();
+
+            // Act
+            var actualCanWriteResult = formatter.CanWriteResult(formatterContext, contetType);
+
+            // Assert
+            Assert.True(actualCanWriteResult);
+        }
+
+        [Theory]
+        [InlineData(null, true, true)]
+        [InlineData(null, false, false)]
+        [InlineData("some value", true, false)]
+        public void 
+            CanWriteResult_ReturnsTrue_IfReturnValueIsNullAndTreatNullValueAsNoContentIsNotSet(string value,
+                                                                                      bool treatNullValueAsNoContent,
+                                                                                      bool expectedCanwriteResult)
+        {
+            // Arrange 
+            var formatterContext = new OutputFormatterContext()
+            {
+                Object = value,
+                DeclaredType = typeof(string),
+                ActionContext = null,
+            };
+
+            var contetType = MediaTypeHeaderValue.Parse("text/plain");
+            var formatter = new HttpNoContentOutputFormatter()
+            {
+                TreatNullValueAsNoContent = treatNullValueAsNoContent
+            };
 
             // Act
             var actualCanWriteResult = formatter.CanWriteResult(formatterContext, contetType);
@@ -71,7 +123,7 @@ namespace Microsoft.AspNet.Mvc.Test
                 ActionContext = new ActionContext(defaultHttpContext, new RouteData(), new ActionDescriptor())
             };
 
-            var formatter = new NoContentFormatter();
+            var formatter = new HttpNoContentOutputFormatter();
 
             // Act
             await formatter.WriteAsync(formatterContext);

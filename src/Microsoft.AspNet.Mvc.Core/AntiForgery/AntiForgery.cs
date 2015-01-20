@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNet.Http;
 using Microsoft.AspNet.Mvc.Rendering;
 using Microsoft.AspNet.Security.DataProtection;
+using Microsoft.Framework.DependencyInjection;
 using Microsoft.Framework.OptionsModel;
 
 namespace Microsoft.AspNet.Mvc
@@ -21,7 +22,7 @@ namespace Microsoft.AspNet.Mvc
         public AntiForgery([NotNull] IClaimUidExtractor claimUidExtractor,
                            [NotNull] IDataProtectionProvider dataProtectionProvider,
                            [NotNull] IAntiForgeryAdditionalDataProvider additionalDataProvider,
-                           [NotNull] IOptionsAccessor<MvcOptions> mvcOptions)
+                           [NotNull] IOptions<MvcOptions> mvcOptions)
         {
             var config = mvcOptions.Options.AntiForgeryOptions;
             var serializer = new AntiForgeryTokenSerializer(dataProtectionProvider.CreateProtector(_purpose));
@@ -41,10 +42,10 @@ namespace Microsoft.AspNet.Mvc
         /// This method has a side effect:
         /// A response cookie is set if there is no valid cookie associated with the request.
         /// </remarks>
-        public HtmlString GetHtml([NotNull] HttpContext context)
+        public TagBuilder GetHtml([NotNull] HttpContext context)
         {
             var builder = _worker.GetFormInputElement(context);
-            return builder.ToHtmlString(TagRenderMode.SelfClosing);
+            return builder;
         }
 
         /// <summary>

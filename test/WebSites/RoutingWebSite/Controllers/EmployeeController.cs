@@ -26,6 +26,12 @@ namespace RoutingWebSite
             return _generator.Generate("/api/Employee");
         }
 
+        [AcceptVerbs("PUT", "PATCH", Route = "Manager")]
+        public IActionResult UpdateManager()
+        {
+            return _generator.Generate("/api/Employee/Manager");
+        }
+
         [HttpMerge("{id}")]
         public IActionResult MergeEmployee(int id)
         {
@@ -54,6 +60,12 @@ namespace RoutingWebSite
         public IActionResult DeleteAdministrator(int id)
         {
             return _generator.Generate("/api/Employee/" + id + "/Administrator");
+        }
+
+        [Route("{id}/Salary")]
+        public IActionResult Salary(int id)
+        {
+            return _generator.Generate("/api/Employee/" + id + "/Salary");
         }
     }
 }

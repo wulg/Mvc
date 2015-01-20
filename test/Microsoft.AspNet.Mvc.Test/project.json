@@ -1,15 +1,19 @@
 {
   "compilationOptions": {
-    "warningsAsErrors": true
+    "warningsAsErrors": "true"
   },
   "dependencies": {
-    "Microsoft.AspNet.Mvc" : "",
+    "Microsoft.AspNet.Mvc" : "6.0.0-*",
     "Xunit.KRunner": "1.0.0-*"
   },
   "commands": {
     "test": "Xunit.KRunner"
   },
   "frameworks": {
-    "net45": { }
+    "aspnet50": {
+        "dependencies": {
+            "Moq": "4.2.1312.1622"
+        }
+    }
   }
 }

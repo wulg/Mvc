@@ -3,8 +3,10 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNet.Mvc.ModelBinding;
+using Microsoft.AspNet.PageExecutionInstrumentation;
 using Microsoft.AspNet.PipelineCore;
 using Moq;
 using Xunit;
@@ -14,6 +16,7 @@ namespace Microsoft.AspNet.Mvc.Razor
     public class RazorViewTest
     {
         private const string LayoutPath = "~/Shared/_Layout.cshtml";
+        private readonly RenderAsyncDelegate _nullRenderAsyncDelegate = async writer => { };
 
         [Fact]
         public async Task RenderAsync_ThrowsIfContextualizeHasNotBeenInvoked()
@@ -33,7 +36,7 @@ namespace Microsoft.AspNet.Mvc.Razor
         }
 
         [Fact]
-        public async Task RenderAsync_AsPartial_DoesNotCreateOutputBuffer()
+        public async Task RenderAsync_AsPartial_DoesNotBufferOutput()
         {
             // Arrange
             TextWriter actual = null;
@@ -54,7 +57,7 @@ namespace Microsoft.AspNet.Mvc.Razor
 
             // Assert
             Assert.Same(expected, actual);
-            Assert.Equal("Hello world", expected.ToString());
+            Assert.Equal("Hello world", viewContext.Writer.ToString());
         }
 
         [Fact]
@@ -132,7 +135,8 @@ namespace Microsoft.AspNet.Mvc.Razor
 
             // Assert
             pageFactory.Verify(v => v.CreateInstance(It.IsAny<string>()), Times.Never());
-            Mock.Get(viewStartProvider).Verify(v => v.GetViewStartPages(It.IsAny<string>()), Times.Never());
+            Mock.Get(viewStartProvider)
+                .Verify(v => v.GetViewStartPages(It.IsAny<string>()), Times.Never());
         }
 
         [Fact]
@@ -261,14 +265,14 @@ foot-content";
             {
                 v.WriteLiteral("body-content");
                 v.Layout = LayoutPath;
-                v.DefineSection("head", new HelperResult(writer =>
+                v.DefineSection("head", async writer =>
                 {
-                    writer.Write("head-content");
-                }));
-                v.DefineSection("foot", new HelperResult(writer =>
+                    await writer.WriteAsync("head-content");
+                });
+                v.DefineSection("foot", async writer =>
                 {
-                    writer.Write("foot-content");
-                }));
+                    await writer.WriteAsync("foot-content");
+                });
             });
             var layout = new TestableRazorPage(v =>
             {
@@ -309,9 +313,9 @@ foot-content";
             // Arrange
             var page = new TestableRazorPage(v =>
             {
-                v.DefineSection("head", new HelperResult(writer => { }));
+                v.DefineSection("head", _nullRenderAsyncDelegate);
                 v.Layout = LayoutPath;
-                v.DefineSection("foot", new HelperResult(writer => { }));
+                v.DefineSection("foot", _nullRenderAsyncDelegate);
             });
             var layout = new TestableRazorPage(v =>
             {
@@ -371,10 +375,10 @@ body-content";
 
             var page = new TestableRazorPage(v =>
             {
-                v.DefineSection("foo", new HelperResult(writer =>
+                v.DefineSection("foo", async writer =>
                 {
-                    writer.WriteLine("foo-content");
-                }));
+                    await writer.WriteLineAsync("foo-content");
+                });
                 v.Layout = "~/Shared/Layout1.cshtml";
                 v.WriteLiteral("body-content");
             });
@@ -382,10 +386,7 @@ body-content";
             {
                 v.Write("layout-1" + Environment.NewLine);
                 v.Write(v.RenderSection("foo"));
-                v.DefineSection("bar", new HelperResult(writer =>
-                {
-                    writer.WriteLine("bar-content");
-                }));
+                v.DefineSection("bar", writer => writer.WriteLineAsync("bar-content"));
                 v.RenderBodyPublic();
                 v.Layout = "~/Shared/Layout2.cshtml";
             });
@@ -428,12 +429,12 @@ section-content-2";
             {
                 v.Layout = "layout-1";
                 v.WriteLiteral("body content" + Environment.NewLine);
-                v.DefineSection("foo", new HelperResult(_ =>
+                v.DefineSection("foo", async _ =>
                 {
                     v.WriteLiteral("section-content-1" + Environment.NewLine);
-                    v.FlushAsync().Wait();
+                    await v.FlushAsync();
                     v.WriteLiteral("section-content-2");
-                }));
+                });
             });
 
             var layout1 = new TestableRazorPage(v =>
@@ -472,12 +473,12 @@ section-content-2";
             var page = new TestableRazorPage(v =>
            {
                v.Layout = "layout-1";
-               v.DefineSection("foo", new HelperResult(_ =>
+               v.DefineSection("foo", async _ =>
                {
                    v.WriteLiteral("section-content-1" + Environment.NewLine);
-                   v.FlushAsync().Wait();
+                   await v.FlushAsync();
                    v.WriteLiteral("section-content-2");
-               }));
+               });
            });
 
             var layout1 = new TestableRazorPage(v =>
@@ -535,11 +536,11 @@ section-content-2";
             var expected = @"A layout page cannot be rendered after 'FlushAsync' has been invoked.";
             var page = new TestableRazorPage(v =>
             {
-                v.DefineSection("foo", new HelperResult(writer =>
+                v.DefineSection("foo", async writer =>
                 {
                     writer.WriteLine("foo-content");
-                    v.FlushAsync().Wait();
-                }));
+                    await v.FlushAsync();
+                });
                 v.Layout = "~/Shared/Layout1.cshtml";
                 v.WriteLiteral("body-content");
             });
@@ -547,10 +548,7 @@ section-content-2";
             {
                 v.Write("layout-1" + Environment.NewLine);
                 v.Write(v.RenderSection("foo"));
-                v.DefineSection("bar", new HelperResult(writer =>
-                {
-                    writer.WriteLine("bar-content");
-                }));
+                v.DefineSection("bar", writer => writer.WriteLineAsync("bar-content"));
                 v.RenderBodyPublic();
                 v.Layout = "~/Shared/Layout2.cshtml";
             });
@@ -567,6 +565,299 @@ section-content-2";
             // Act and Assert
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => view.RenderAsync(viewContext));
             Assert.Equal(expected, ex.Message);
+        }
+
+        [Fact]
+        public async Task RenderAsync_UsesPageExecutionFeatureFromRequest_ToWrapWriter()
+        {
+            // Arrange
+            var pageWriter = CreateBufferedWriter();
+            var layoutWriter = CreateBufferedWriter();
+
+            var layoutExecuted = false;
+            var count = -1;
+            var feature = new Mock<IPageExecutionListenerFeature>(MockBehavior.Strict);
+            feature.Setup(f => f.DecorateWriter(It.IsAny<RazorTextWriter>()))
+                   .Returns(() =>
+                   {
+                       count++;
+                       if (count == 0)
+                       {
+                           return pageWriter;
+                       }
+                       else if (count == 1)
+                       {
+                           return layoutWriter;
+                       }
+                       throw new Exception();
+                   })
+                   .Verifiable();
+
+            var pageContext = Mock.Of<IPageExecutionContext>();
+            feature.Setup(f => f.GetContext("/MyPage.cshtml", pageWriter))
+                    .Returns(pageContext)
+                    .Verifiable();
+
+            var layoutContext = Mock.Of<IPageExecutionContext>();
+            feature.Setup(f => f.GetContext("/Layout.cshtml", layoutWriter))
+                    .Returns(layoutContext)
+                    .Verifiable();
+
+            var page = new TestableRazorPage(v =>
+            {
+                v.Layout = "/Layout.cshtml";
+                Assert.Same(pageWriter, v.Output);
+                Assert.Same(pageContext, v.PageExecutionContext);
+            });
+            page.Path = "/MyPage.cshtml";
+
+            var layout = new TestableRazorPage(v =>
+            {
+                Assert.Same(layoutWriter, v.Output);
+                Assert.Same(layoutContext, v.PageExecutionContext);
+                v.RenderBodyPublic();
+
+                layoutExecuted = true;
+            });
+            layout.Path = "/Layout.cshtml";
+
+            var pageFactory = new Mock<IRazorPageFactory>();
+            pageFactory.Setup(p => p.CreateInstance("/Layout.cshtml"))
+                       .Returns(layout);
+            var viewStartProvider = new Mock<IViewStartProvider>();
+            viewStartProvider.Setup(v => v.GetViewStartPages(It.IsAny<string>()))
+                             .Returns(Enumerable.Empty<IRazorPage>())
+                             .Verifiable();
+            var view = new RazorView(pageFactory.Object,
+                                     Mock.Of<IRazorPageActivator>(),
+                                     viewStartProvider.Object);
+            view.Contextualize(page, isPartial: false);
+            var viewContext = CreateViewContext(view);
+            viewContext.HttpContext.SetFeature<IPageExecutionListenerFeature>(feature.Object);
+
+            // Act
+            await view.RenderAsync(viewContext);
+
+            // Assert
+            feature.Verify();
+            viewStartProvider.Verify();
+            Assert.True(layoutExecuted);
+        }
+
+        [Fact]
+        public async Task RenderAsync_UsesPageExecutionFeatureFromRequest_ToGetExecutionContext()
+        {
+            // Arrange
+            var writer = new StringWriter();
+            var executed = false;
+            var feature = new Mock<IPageExecutionListenerFeature>(MockBehavior.Strict);
+
+            var pageContext = Mock.Of<IPageExecutionContext>();
+            feature.Setup(f => f.GetContext("/MyPartialPage.cshtml", It.IsAny<RazorTextWriter>()))
+                    .Returns(pageContext)
+                    .Verifiable();
+
+            feature.Setup(f => f.DecorateWriter(It.IsAny<RazorTextWriter>()))
+                   .Returns((RazorTextWriter r) => r)
+                   .Verifiable();
+
+            var page = new TestableRazorPage(v =>
+            {
+                Assert.IsType<RazorTextWriter>(v.Output);
+                Assert.Same(pageContext, v.PageExecutionContext);
+                executed = true;
+
+                v.Write("Hello world");
+            });
+            page.Path = "/MyPartialPage.cshtml";
+
+            var view = new RazorView(Mock.Of<IRazorPageFactory>(),
+                                     Mock.Of<IRazorPageActivator>(),
+                                     Mock.Of<IViewStartProvider>());
+            view.Contextualize(page, isPartial: true);
+            var viewContext = CreateViewContext(view);
+            viewContext.Writer = writer;
+            viewContext.HttpContext.SetFeature<IPageExecutionListenerFeature>(feature.Object);
+
+            // Act
+            await view.RenderAsync(viewContext);
+
+            // Assert
+            feature.Verify();
+            Assert.True(executed);
+            Assert.Equal("Hello world", viewContext.Writer.ToString());
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task RenderAsync_DoesNotSetExecutionContextWhenListenerIsNotRegistered(bool isPartial)
+        {
+            // Arrange
+            var executed = false;
+            var page = new TestableRazorPage(v =>
+            {
+                Assert.Null(v.PageExecutionContext);
+                executed = true;
+            });
+
+            var view = new RazorView(Mock.Of<IRazorPageFactory>(),
+                                     Mock.Of<IRazorPageActivator>(),
+                                     Mock.Of<IViewStartProvider>());
+            view.Contextualize(page, isPartial);
+            var viewContext = CreateViewContext(view);
+
+            // Act
+            await view.RenderAsync(viewContext);
+
+            // Assert
+            Assert.True(executed);
+        }
+
+        [Fact]
+        public async Task RenderAsync_CopiesLayoutPropertyFromViewStart()
+        {
+            // Arrange
+            var expectedViewStart = "Layout1";
+            var expectedPage = "Layout2";
+            string actualViewStart = null;
+            string actualPage = null;
+            var page = new TestableRazorPage(v =>
+            {
+                actualPage = v.Layout;
+                // Clear it out because we don't care about rendering the layout in this test.
+                v.Layout = null;
+            });
+            var viewStart1 = new TestableRazorPage(v =>
+            {
+                v.Layout = expectedViewStart;
+            });
+            var viewStart2 = new TestableRazorPage(v =>
+            {
+                actualViewStart = v.Layout;
+                v.Layout = expectedPage;
+            });
+            var pageFactory = Mock.Of<IRazorPageFactory>();
+
+            var view = new RazorView(pageFactory,
+                                     Mock.Of<IRazorPageActivator>(),
+                                     CreateViewStartProvider(viewStart1, viewStart2));
+            view.Contextualize(page, isPartial: false);
+            var viewContext = CreateViewContext(view);
+
+            // Act
+            await view.RenderAsync(viewContext);
+
+            // Assert
+            Assert.Equal(expectedViewStart, actualViewStart);
+            Assert.Equal(expectedPage, actualPage);
+        }
+
+        [Fact]
+        public async Task ResettingLayout_InViewStartCausesItToBeResetInPage()
+        {
+            // Arrange
+            var expected = "Layout";
+            string actual = null;
+
+            var page = new TestableRazorPage(v =>
+            {
+                Assert.Null(v.Layout);
+            });
+            var viewStart1 = new TestableRazorPage(v =>
+            {
+                v.Layout = expected;
+            });
+            var viewStart2 = new TestableRazorPage(v =>
+            {
+                actual = v.Layout;
+                v.Layout = null;
+            });
+            var pageFactory = Mock.Of<IRazorPageFactory>();
+
+            var view = new RazorView(pageFactory,
+                                     Mock.Of<IRazorPageActivator>(),
+                                     CreateViewStartProvider(viewStart1, viewStart2));
+            view.Contextualize(page, isPartial: false);
+            var viewContext = CreateViewContext(view);
+
+            // Act
+            await view.RenderAsync(viewContext);
+
+            // Assert
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public async Task IsPartial_IsSetToFalse_ForViewStartPageAndLayoutOfAView()
+        {
+            // Arrange
+            bool? isPartialPage = null;
+            bool? isPartialLayout = null;
+            bool? isPartialViewStart = null;
+
+            var page = new TestableRazorPage(v =>
+            {
+                isPartialPage = v.IsPartial;
+            });
+            var viewStart = new TestableRazorPage(v =>
+            {
+                v.Layout = "/Layout.cshtml";
+                isPartialViewStart = v.IsPartial;
+            });
+            var layout = new TestableRazorPage(v =>
+            {
+                isPartialLayout = v.IsPartial;
+                v.RenderBodyPublic();
+            });
+            var pageFactory = new Mock<IRazorPageFactory>();
+            pageFactory.Setup(p => p.CreateInstance("/Layout.cshtml"))
+                       .Returns(layout);
+
+            var view = new RazorView(pageFactory.Object,
+                                     Mock.Of<IRazorPageActivator>(),
+                                     CreateViewStartProvider(viewStart));
+            view.Contextualize(page, isPartial: false);
+            var viewContext = CreateViewContext(view);
+
+            // Act
+            await view.RenderAsync(viewContext);
+
+            // Assert
+            Assert.False(isPartialPage.Value);
+            Assert.False(isPartialLayout.Value);
+            Assert.False(isPartialViewStart.Value);
+        }
+
+        [Fact]
+        public async Task IsPartial_IsSetToTrue_ForPartialView()
+        {
+            // Arrange
+            bool? isPartialPage = null;
+            var page = new TestableRazorPage(v =>
+            {
+                isPartialPage = v.IsPartial;
+            });
+            var view = new RazorView(Mock.Of<IRazorPageFactory>(),
+                                     Mock.Of<IRazorPageActivator>(),
+                                     CreateViewStartProvider());
+            view.Contextualize(page, isPartial: true);
+            var viewContext = CreateViewContext(view);
+
+            // Act
+            await view.RenderAsync(viewContext);
+
+            // Assert
+            Assert.True(isPartialPage.Value);
+        }
+
+        private static TextWriter CreateBufferedWriter()
+        {
+            var mockWriter = new Mock<TextWriter>();
+            var bufferedWriter = mockWriter.As<IBufferedTextWriter>();
+            bufferedWriter.SetupGet(b => b.IsBuffering)
+                          .Returns(true);
+            return mockWriter.Object;
         }
 
         private static ViewContext CreateViewContext(RazorView view)

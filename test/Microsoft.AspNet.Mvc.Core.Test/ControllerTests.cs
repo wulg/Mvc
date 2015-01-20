@@ -1,19 +1,22 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Reflection;
-using System.Text;
+using Microsoft.AspNet.Http;
 using Microsoft.AspNet.Mvc.ModelBinding;
+using Microsoft.AspNet.Mvc.Rendering;
 using Microsoft.AspNet.Routing;
 using Microsoft.AspNet.Testing;
-#if NET45
+#if ASPNET50
 using Moq;
 #endif
 using Xunit;
-using Microsoft.AspNet.Http;
 
 namespace Microsoft.AspNet.Mvc.Test
 {
@@ -93,8 +96,8 @@ namespace Microsoft.AspNet.Mvc.Test
             var controller = new Controller();
 
             // Act & Assert
-            ExceptionAssert.ThrowsArgument(
-                () => controller.Redirect(url: url), "url", "The value cannot be null or empty");
+            ExceptionAssert.ThrowsArgumentNullOrEmpty(
+                () => controller.Redirect(url: url), "url");
         }
 
         [Theory]
@@ -106,8 +109,8 @@ namespace Microsoft.AspNet.Mvc.Test
             var controller = new Controller();
 
             // Act & Assert
-            ExceptionAssert.ThrowsArgument(
-                () => controller.RedirectPermanent(url: url), "url", "The value cannot be null or empty");
+            ExceptionAssert.ThrowsArgumentNullOrEmpty(
+                () => controller.RedirectPermanent(url: url), "url");
         }
 
         [Fact]
@@ -180,8 +183,10 @@ namespace Microsoft.AspNet.Mvc.Test
         }
 
         [Theory]
-        [MemberData("RedirectTestData")]
-        public void RedirectToAction_WithParameterActionControllerRouteValues_SetsResultProperties(object routeValues)
+        [MemberData(nameof(RedirectTestData))]
+        public void RedirectToAction_WithParameterActionControllerRouteValues_SetsResultProperties(
+            object routeValues,
+            IEnumerable<KeyValuePair<string, object>> expected)
         {
             // Arrange
             var controller = new Controller();
@@ -194,13 +199,14 @@ namespace Microsoft.AspNet.Mvc.Test
             Assert.False(resultTemporary.Permanent);
             Assert.Equal("SampleAction", resultTemporary.ActionName);
             Assert.Equal("SampleController", resultTemporary.ControllerName);
-            Assert.Equal(TypeHelper.ObjectToDictionary(routeValues), resultTemporary.RouteValues);
+            Assert.Equal(expected, resultTemporary.RouteValues);
         }
 
         [Theory]
-        [MemberData("RedirectTestData")]
+        [MemberData(nameof(RedirectTestData))]
         public void RedirectToActionPermanent_WithParameterActionControllerRouteValues_SetsResultProperties(
-            object routeValues)
+            object routeValues,
+            IEnumerable<KeyValuePair<string, object>> expected)
         {
             // Arrange
             var controller = new Controller();
@@ -216,12 +222,14 @@ namespace Microsoft.AspNet.Mvc.Test
             Assert.True(resultPermanent.Permanent);
             Assert.Equal("SampleAction", resultPermanent.ActionName);
             Assert.Equal("SampleController", resultPermanent.ControllerName);
-            Assert.Equal(TypeHelper.ObjectToDictionary(routeValues), resultPermanent.RouteValues);
+            Assert.Equal(expected, resultPermanent.RouteValues);
         }
 
         [Theory]
-        [MemberData("RedirectTestData")]
-        public void RedirectToAction_WithParameterActionAndRouteValues_SetsResultProperties(object routeValues)
+        [MemberData(nameof(RedirectTestData))]
+        public void RedirectToAction_WithParameterActionAndRouteValues_SetsResultProperties(
+            object routeValues,
+            IEnumerable<KeyValuePair<string, object>> expected)
         {
             // Arrange
             var controller = new Controller();
@@ -233,13 +241,14 @@ namespace Microsoft.AspNet.Mvc.Test
             Assert.IsType<RedirectToActionResult>(resultTemporary);
             Assert.False(resultTemporary.Permanent);
             Assert.Null(resultTemporary.ActionName);
-            Assert.Equal(TypeHelper.ObjectToDictionary(routeValues), resultTemporary.RouteValues);
+            Assert.Equal(expected, resultTemporary.RouteValues);
         }
 
         [Theory]
-        [MemberData("RedirectTestData")]
+        [MemberData(nameof(RedirectTestData))]
         public void RedirectToActionPermanent_WithParameterActionAndRouteValues_SetsResultProperties(
-            object routeValues)
+            object routeValues,
+            IEnumerable<KeyValuePair<string, object>> expected)
         {
             // Arrange
             var controller = new Controller();
@@ -251,12 +260,14 @@ namespace Microsoft.AspNet.Mvc.Test
             Assert.IsType<RedirectToActionResult>(resultPermanent);
             Assert.True(resultPermanent.Permanent);
             Assert.Null(resultPermanent.ActionName);
-            Assert.Equal(TypeHelper.ObjectToDictionary(routeValues), resultPermanent.RouteValues);
+            Assert.Equal(expected, resultPermanent.RouteValues);
         }
 
         [Theory]
-        [MemberData("RedirectTestData")]
-        public void RedirectToRoute_WithParameterRouteValues_SetsResultEqualRouteValues(object routeValues)
+        [MemberData(nameof(RedirectTestData))]
+        public void RedirectToRoute_WithParameterRouteValues_SetsResultEqualRouteValues(
+            object routeValues,
+            IEnumerable<KeyValuePair<string, object>> expected)
         {
             // Arrange
             var controller = new Controller();
@@ -267,13 +278,14 @@ namespace Microsoft.AspNet.Mvc.Test
             // Assert
             Assert.IsType<RedirectToRouteResult>(resultTemporary);
             Assert.False(resultTemporary.Permanent);
-            Assert.Equal(TypeHelper.ObjectToDictionary(routeValues), resultTemporary.RouteValues);
+            Assert.Equal(expected, resultTemporary.RouteValues);
         }
 
         [Theory]
-        [MemberData("RedirectTestData")]
+        [MemberData(nameof(RedirectTestData))]
         public void RedirectToRoutePermanent_WithParameterRouteValues_SetsResultEqualRouteValuesAndPermanent(
-            object routeValues)
+            object routeValues,
+            IEnumerable<KeyValuePair<string, object>> expected)
         {
             // Arrange
             var controller = new Controller();
@@ -284,7 +296,7 @@ namespace Microsoft.AspNet.Mvc.Test
             // Assert
             Assert.IsType<RedirectToRouteResult>(resultPermanent);
             Assert.True(resultPermanent.Permanent);
-            Assert.Equal(TypeHelper.ObjectToDictionary(routeValues), resultPermanent.RouteValues);
+            Assert.Equal(expected, resultPermanent.RouteValues);
         }
 
         [Fact]
@@ -320,9 +332,10 @@ namespace Microsoft.AspNet.Mvc.Test
         }
 
         [Theory]
-        [MemberData("RedirectTestData")]
+        [MemberData(nameof(RedirectTestData))]
         public void RedirectToRoute_WithParameterRouteNameAndRouteValues_SetsResultSameRouteNameAndRouteValues(
-            object routeValues)
+            object routeValues,
+            IEnumerable<KeyValuePair<string, object>> expected)
         {
             // Arrange
             var controller = new Controller();
@@ -335,13 +348,14 @@ namespace Microsoft.AspNet.Mvc.Test
             Assert.IsType<RedirectToRouteResult>(resultTemporary);
             Assert.False(resultTemporary.Permanent);
             Assert.Same(routeName, resultTemporary.RouteName);
-            Assert.Equal(TypeHelper.ObjectToDictionary(routeValues), resultTemporary.RouteValues);
+            Assert.Equal(expected, resultTemporary.RouteValues);
         }
 
         [Theory]
-        [MemberData("RedirectTestData")]
+        [MemberData(nameof(RedirectTestData))]
         public void RedirectToRoutePermanent_WithParameterRouteNameAndRouteValues_SetsResultProperties(
-            object routeValues)
+            object routeValues,
+            IEnumerable<KeyValuePair<string, object>> expected)
         {
             // Arrange
             var controller = new Controller();
@@ -354,8 +368,111 @@ namespace Microsoft.AspNet.Mvc.Test
             Assert.IsType<RedirectToRouteResult>(resultPermanent);
             Assert.True(resultPermanent.Permanent);
             Assert.Same(routeName, resultPermanent.RouteName);
-            Assert.Equal(TypeHelper.ObjectToDictionary(routeValues), resultPermanent.RouteValues);
+            Assert.Equal(expected, resultPermanent.RouteValues);
         }
+
+        [Fact]
+        public void File_WithContents()
+        {
+            // Arrange
+            var controller = new Controller();
+            var fileContents = new byte[0];
+
+            // Act
+            var result = controller.File(fileContents, "someContentType");
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Same(fileContents, result.FileContents);
+            Assert.Equal("someContentType", result.ContentType);
+            Assert.Equal(string.Empty, result.FileDownloadName);
+        }
+
+        [Fact]
+        public void File_WithContentsAndFileDownloadName()
+        {
+            // Arrange
+            var controller = new Controller();
+            var fileContents = new byte[0];
+
+            // Act
+            var result = controller.File(fileContents, "someContentType", "someDownloadName");
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Same(fileContents, result.FileContents);
+            Assert.Equal("someContentType", result.ContentType);
+            Assert.Equal("someDownloadName", result.FileDownloadName);
+        }
+
+        [Fact]
+        public void File_WithPath()
+        {
+            // Arrange
+            var controller = new Controller();
+            var path = Path.GetFullPath("somepath");
+
+            // Act
+            var result = controller.File(path, "someContentType");
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(path, result.FileName);
+            Assert.Equal("someContentType", result.ContentType);
+            Assert.Equal(string.Empty, result.FileDownloadName);
+        }
+
+        [Fact]
+        public void File_WithPathAndFileDownloadName()
+        {
+            // Arrange
+            var controller = new Controller();
+            var path = Path.GetFullPath("somepath");
+
+            // Act
+            var result = controller.File(path, "someContentType", "someDownloadName");
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(path, result.FileName);
+            Assert.Equal("someContentType", result.ContentType);
+            Assert.Equal("someDownloadName", result.FileDownloadName);
+        }
+
+        [Fact]
+        public void File_WithStream()
+        {
+            // Arrange
+            var controller = new Controller();
+            var fileStream = Stream.Null;
+
+            // Act
+            var result = controller.File(fileStream, "someContentType");
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Same(fileStream, result.FileStream);
+            Assert.Equal("someContentType", result.ContentType);
+            Assert.Equal(string.Empty, result.FileDownloadName);
+        }
+
+        [Fact]
+        public void File_WithStreamAndFileDownloadName()
+        {
+            // Arrange
+            var controller = new Controller();
+            var fileStream = Stream.Null;
+
+            // Act
+            var result = controller.File(fileStream, "someContentType", "someDownloadName");
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Same(fileStream, result.FileStream);
+            Assert.Equal("someContentType", result.ContentType);
+            Assert.Equal("someDownloadName", result.FileDownloadName);
+        }
+
 
         [Fact]
         public void HttpNotFound_SetsStatusCode()
@@ -372,7 +489,7 @@ namespace Microsoft.AspNet.Mvc.Test
         }
 
         [Theory]
-        [MemberData("PublicNormalMethodsFromController")]
+        [MemberData(nameof(PublicNormalMethodsFromController))]
         public void NonActionAttribute_IsOnEveryPublicNormalMethodFromController(MethodInfo method)
         {
             // Arrange & Act & Assert
@@ -524,25 +641,35 @@ namespace Microsoft.AspNet.Mvc.Test
         {
             get
             {
-                yield return new object[] { null };
                 yield return new object[]
-                    {
-                        new Dictionary<string, string>() { { "hello", "world" } },
-                    };
+                {
+                    null,
+                    Enumerable.Empty<KeyValuePair<string, object>>()
+                };
+
                 yield return new object[]
-                    {
-                        new RouteValueDictionary(new Dictionary<string, string>()
-                            {
-                                { "test", "case" },
-                                { "sample", "route" },
-                            }),
-                    };
+                {
+                    new Dictionary<string, object> { { "hello", "world" } },
+                    new[] { new KeyValuePair<string, object>("hello", "world") }
+                };
+
+                var expected2 = new Dictionary<string, object>
+                {
+                    { "test", "case" },
+                    { "sample", "route" },
+                };
+
+                yield return new object[]
+                {
+                    new RouteValueDictionary(expected2),
+                    expected2
+                };
             }
         }
 
         // These tests share code with the ActionFilterAttribute tests because the various filter
         // implementations need to behave the same way.
-#if NET45
+#if ASPNET50
         [Fact]
         public async Task Controller_ActionFilter_SettingResult_ShortCircuits()
         {
@@ -680,9 +807,176 @@ namespace Microsoft.AspNet.Mvc.Test
         }
 #endif
 
+        [Fact]
+        public void ControllerExposes_RequestServices()
+        {
+            // Arrange
+            var controller = new Controller();
+
+            var serviceProvider = Mock.Of<IServiceProvider>();
+            var httpContext = new Mock<HttpContext>();
+            httpContext.Setup(c => c.RequestServices)
+                           .Returns(serviceProvider);
+
+            controller.ActionContext = new ActionContext(httpContext.Object,
+                                                  Mock.Of<RouteData>(),
+                                                  new ActionDescriptor());
+
+            // Act
+            var innerServiceProvider = controller.Resolver;
+
+            // Assert
+            Assert.Same(serviceProvider, innerServiceProvider);
+        }
+
+        [Fact]
+        public void ControllerExposes_Request()
+        {
+            // Arrange
+            var controller = new Controller();
+
+            var request = Mock.Of<HttpRequest>();
+            var httpContext = new Mock<HttpContext>();
+            httpContext.Setup(c => c.Request)
+                           .Returns(request);
+
+            controller.ActionContext = new ActionContext(httpContext.Object,
+                                                  Mock.Of<RouteData>(),
+                                                  new ActionDescriptor());
+
+            // Act
+            var innerRequest = controller.Request;
+
+            // Assert
+            Assert.Same(request, innerRequest);
+        }
+
+        [Fact]
+        public void ControllerExposes_Response()
+        {
+            // Arrange
+            var controller = new Controller();
+
+            var response = Mock.Of<HttpResponse>();
+            var httpContext = new Mock<HttpContext>();
+            httpContext.Setup(c => c.Response)
+                           .Returns(response);
+
+            controller.ActionContext = new ActionContext(httpContext.Object,
+                                                  Mock.Of<RouteData>(),
+                                                  new ActionDescriptor());
+
+            // Act
+            var innerResponse = controller.Response;
+
+            // Assert
+            Assert.Same(response, innerResponse);
+        }
+
+        [Fact]
+        public void ControllerExposes_RouteData()
+        {
+            // Arrange
+            var controller = new Controller();
+
+            var routeData = Mock.Of<RouteData>();
+
+            controller.ActionContext = new ActionContext(Mock.Of<HttpContext>(),
+                                                  routeData,
+                                                  new ActionDescriptor());
+
+            // Act
+            var innerRouteData = controller.RouteData;
+
+            // Assert
+            Assert.Same(routeData, innerRouteData);
+        }
+
+        [Fact]
+        public void ControllerDispose_CallsDispose()
+        {
+            // Arrange
+            var controller = new DisposableController();
+
+            // Act
+            controller.Dispose();
+
+            // Assert
+            Assert.True(controller.DisposeCalled);
+        }
+
+        [Fact]
+        public void ControllerExpose_ViewEngine()
+        {
+            // Arrange
+            var controller = new Controller();
+
+            var viewEngine = Mock.Of<ICompositeViewEngine>();
+
+            var serviceProvider = new Mock<IServiceProvider>();
+            serviceProvider
+                .Setup(s => s.GetService(It.Is<Type>(t => t == typeof(ICompositeViewEngine))))
+                .Returns(viewEngine);
+
+            var httpContext = new Mock<HttpContext>();
+                httpContext
+                    .Setup(c => c.RequestServices)
+                    .Returns(serviceProvider.Object);
+
+            controller.ActionContext = new ActionContext(httpContext.Object,
+                                                  Mock.Of<RouteData>(),
+                                                  new ActionDescriptor());
+
+            // Act
+            var innerViewEngine = controller.ViewEngine;
+
+            // Assert
+            Assert.Same(viewEngine, innerViewEngine);
+        }
+
+        [Fact]
+        public void ControllerView_UsesControllerViewEngine()
+        {
+            // Arrange
+            var controller = new Controller();
+
+            var viewEngine = Mock.Of<ICompositeViewEngine>();
+
+            var serviceProvider = new Mock<IServiceProvider>();
+            serviceProvider
+                .Setup(s => s.GetService(It.Is<Type>(t => t == typeof(ICompositeViewEngine))))
+                .Returns(viewEngine);
+
+            var httpContext = new Mock<HttpContext>();
+            httpContext
+                .Setup(c => c.RequestServices)
+                .Returns(serviceProvider.Object);
+
+            controller.ActionContext = new ActionContext(httpContext.Object,
+                                                  Mock.Of<RouteData>(),
+                                                  new ActionDescriptor());
+
+            // Act
+            var unsused = controller.ViewEngine;
+            var result = controller.View();
+
+            // Assert
+            Assert.Same(viewEngine, result.ViewEngine);
+        }
+
         private class MyModel
         {
             public string Foo { get; set; }
+        }
+
+        private class DisposableController : Controller
+        {
+            public bool DisposeCalled { get; private set; }
+
+            protected override void Dispose(bool disposing)
+            {
+                DisposeCalled = true;
+            }
         }
     }
 }

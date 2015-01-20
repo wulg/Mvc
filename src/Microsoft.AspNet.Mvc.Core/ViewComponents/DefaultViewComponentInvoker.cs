@@ -74,7 +74,7 @@ namespace Microsoft.AspNet.Mvc
 
         private object CreateComponent([NotNull] ViewContext context)
         {
-            var activator = _serviceProvider.GetService<ITypeActivator>();
+            var activator = _serviceProvider.GetRequiredService<ITypeActivator>();
             var component = activator.CreateInstance(_serviceProvider, _componentType.AsType());
             _viewComponentActivator.Activate(component, context);
             return component;
@@ -86,7 +86,7 @@ namespace Microsoft.AspNet.Mvc
         {
             var component = CreateComponent(context);
 
-            var result = await ReflectedActionExecutor.ExecuteAsync(method, component, _args);
+            var result = await ControllerActionExecutor.ExecuteAsync(method, component, _args);
 
             return CoerceToViewComponentResult(result);
         }

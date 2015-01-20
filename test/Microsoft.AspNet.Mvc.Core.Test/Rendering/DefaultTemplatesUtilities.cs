@@ -6,17 +6,15 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNet.Http;
 using Microsoft.AspNet.Mvc.ModelBinding;
-using Microsoft.AspNet.Mvc.Rendering;
 using Microsoft.AspNet.Routing;
 using Microsoft.AspNet.Security.DataProtection;
 using Microsoft.Framework.OptionsModel;
 using Moq;
 
-namespace Microsoft.AspNet.Mvc.Core
+namespace Microsoft.AspNet.Mvc.Rendering
 {
     public class DefaultTemplatesUtilities
     {
@@ -45,7 +43,25 @@ namespace Microsoft.AspNet.Mvc.Core
 
         public static HtmlHelper<ObjectTemplateModel> GetHtmlHelper()
         {
-            return GetHtmlHelper<ObjectTemplateModel>(null);
+            return GetHtmlHelper<ObjectTemplateModel>(model: null);
+        }
+
+        public static HtmlHelper<ObjectTemplateModel> GetHtmlHelper(IUrlHelper urlHelper)
+        {
+            return GetHtmlHelper<ObjectTemplateModel>(
+                model: null,
+                urlHelper: urlHelper,
+                viewEngine: CreateViewEngine(),
+                provider: CreateModelMetadataProvider());
+        }
+
+        public static HtmlHelper<TModel> GetHtmlHelperForViewData<TModel>(ViewDataDictionary<TModel> viewData)
+        {
+            return GetHtmlHelper(viewData,
+                                CreateUrlHelper(),
+                                CreateViewEngine(),
+                                CreateModelMetadataProvider(),
+                                innerHelperWrapper: null);
         }
 
         public static HtmlHelper<TModel> GetHtmlHelper<TModel>(TModel model)
@@ -55,27 +71,61 @@ namespace Microsoft.AspNet.Mvc.Core
 
         public static HtmlHelper<ObjectTemplateModel> GetHtmlHelper(IModelMetadataProvider provider)
         {
-            return GetHtmlHelper<ObjectTemplateModel>(null, provider);
+            return GetHtmlHelper<ObjectTemplateModel>(model: null, provider: provider);
         }
 
         public static HtmlHelper<TModel> GetHtmlHelper<TModel>(TModel model, IModelMetadataProvider provider)
         {
-            return GetHtmlHelper(model, CreateViewEngine(), provider);
+            return GetHtmlHelper(model, CreateUrlHelper(), CreateViewEngine(), provider);
         }
 
         public static HtmlHelper<TModel> GetHtmlHelper<TModel>(TModel model, ICompositeViewEngine viewEngine)
         {
-            return GetHtmlHelper(model, viewEngine, new DataAnnotationsModelMetadataProvider());
+            return GetHtmlHelper(model, CreateUrlHelper(), viewEngine, CreateModelMetadataProvider());
         }
 
         public static HtmlHelper<TModel> GetHtmlHelper<TModel>(
             TModel model,
             ICompositeViewEngine viewEngine,
+            Func<IHtmlHelper, IHtmlHelper> innerHelperWrapper)
+        {
+            return GetHtmlHelper(
+                model,
+                CreateUrlHelper(),
+                viewEngine,
+                CreateModelMetadataProvider(),
+                innerHelperWrapper);
+        }
+
+        public static HtmlHelper<TModel> GetHtmlHelper<TModel>(
+            TModel model,
+            IUrlHelper urlHelper,
+            ICompositeViewEngine viewEngine,
             IModelMetadataProvider provider)
+        {
+            return GetHtmlHelper(model, urlHelper, viewEngine, provider, innerHelperWrapper: null);
+        }
+
+        public static HtmlHelper<TModel> GetHtmlHelper<TModel>(
+            TModel model,
+            IUrlHelper urlHelper,
+            ICompositeViewEngine viewEngine,
+            IModelMetadataProvider provider,
+            Func<IHtmlHelper, IHtmlHelper> innerHelperWrapper)
         {
             var viewData = new ViewDataDictionary<TModel>(provider);
             viewData.Model = model;
 
+            return GetHtmlHelper(viewData, urlHelper, viewEngine, provider, innerHelperWrapper);
+        }
+
+        private static HtmlHelper<TModel> GetHtmlHelper<TModel>(
+            ViewDataDictionary<TModel> viewData,
+            IUrlHelper urlHelper, 
+            ICompositeViewEngine viewEngine, 
+            IModelMetadataProvider provider, 
+            Func<IHtmlHelper, IHtmlHelper> innerHelperWrapper)
+        {
             var httpContext = new Mock<HttpContext>();
             httpContext
                 .Setup(o => o.Response)
@@ -93,8 +143,7 @@ namespace Microsoft.AspNet.Mvc.Core
                                                                 Mock.Of<IModelBinder>(),
                                                                 Mock.Of<IValueProvider>(),
                                                                 Mock.Of<IInputFormatterSelector>(),
-                                                                Mock.Of<IModelValidatorProvider>());
-            var urlHelper = Mock.Of<IUrlHelper>();
+                                                                new DataAnnotationsModelValidatorProvider());
             var actionBindingContextProvider = new Mock<IActionBindingContextProvider>();
             actionBindingContextProvider
                .Setup(c => c.GetActionBindingContextAsync(It.IsAny<ActionContext>()))
@@ -115,27 +164,33 @@ namespace Microsoft.AspNet.Mvc.Core
                 .Setup(o => o.RequestServices)
                 .Returns(serviceProvider.Object);
 
-            var viewContext = new ViewContext(actionContext, Mock.Of<IView>(), viewData, new StringWriter());
+            var htmlGenerator = new DefaultHtmlGenerator(
+                actionBindingContextProvider.Object,
+                GetAntiForgeryInstance(),
+                provider,
+                urlHelper);
 
             // TemplateRenderer will Contextualize this transient service.
+            var innerHelper = (IHtmlHelper)new HtmlHelper(htmlGenerator, viewEngine, provider);
+            if (innerHelperWrapper != null)
+            {
+                innerHelper = innerHelperWrapper(innerHelper);
+            }
             serviceProvider
                 .Setup(s => s.GetService(typeof(IHtmlHelper)))
-                .Returns(() => new HtmlHelper(
-                    viewEngine,
-                    provider,
-                    urlHelper,
-                    GetAntiForgeryInstance(),
-                    actionBindingContextProvider.Object));
+                .Returns(() => innerHelper);
 
-            var htmlHelper = new HtmlHelper<TModel>(
-                viewEngine,
-                provider,
-                urlHelper,
-                GetAntiForgeryInstance(),
-                actionBindingContextProvider.Object);
+            var htmlHelper = new HtmlHelper<TModel>(htmlGenerator, viewEngine, provider);
+            var viewContext = new ViewContext(actionContext, Mock.Of<IView>(), viewData, new StringWriter());
             htmlHelper.Contextualize(viewContext);
 
             return htmlHelper;
+        }
+
+        public static string FormatOutput(IHtmlHelper helper, object model)
+        {
+            var metadata = helper.MetadataProvider.GetMetadataForType(() => model, model.GetType());
+            return FormatOutput(metadata);
         }
 
         private static ICompositeViewEngine CreateViewEngine()
@@ -163,7 +218,7 @@ namespace Microsoft.AspNet.Mvc.Core
             var claimExtractor = new Mock<IClaimUidExtractor>();
             var dataProtectionProvider = new Mock<IDataProtectionProvider>();
             var additionalDataProvider = new Mock<IAntiForgeryAdditionalDataProvider>();
-            var optionsAccessor = new Mock<IOptionsAccessor<MvcOptions>>();
+            var optionsAccessor = new Mock<IOptions<MvcOptions>>();
             optionsAccessor.SetupGet(o => o.Options).Returns(new MvcOptions());
             return new AntiForgery(claimExtractor.Object,
                                    dataProtectionProvider.Object,
@@ -179,6 +234,16 @@ namespace Microsoft.AspNet.Mvc.Core
                                 metadata.ModelType == null ? "(null)" : metadata.ModelType.FullName,
                                 metadata.PropertyName ?? "(null)",
                                 metadata.SimpleDisplayText ?? "(null)");
+        }
+
+        private static IUrlHelper CreateUrlHelper()
+        {
+            return Mock.Of<IUrlHelper>();
+        }
+
+        private static IModelMetadataProvider CreateModelMetadataProvider()
+        {
+            return new DataAnnotationsModelMetadataProvider();
         }
     }
 }

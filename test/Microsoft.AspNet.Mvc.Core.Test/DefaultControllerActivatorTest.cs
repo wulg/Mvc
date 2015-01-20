@@ -1,10 +1,11 @@
-﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved.
+// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-#if NET45
+#if ASPNET50
 using System;
 using Microsoft.AspNet.Http;
 using Microsoft.AspNet.Mvc.ModelBinding;
+using Microsoft.AspNet.Mvc.Rendering;
 using Microsoft.AspNet.Routing;
 using Moq;
 using Xunit;
@@ -17,12 +18,18 @@ namespace Microsoft.AspNet.Mvc.Core.Test
         public void Activate_SetsPropertiesFromActionContextHierarchy()
         {
             // Arrange
+            var services = new Mock<IServiceProvider>();
+            services.Setup(s => s.GetService(typeof(IUrlHelper)))
+                    .Returns(Mock.Of<IUrlHelper>());
+            services.Setup(s => s.GetService(typeof(IModelMetadataProvider)))
+                    .Returns(Mock.Of<IModelMetadataProvider>());
+
             var httpRequest = Mock.Of<HttpRequest>();
             var httpContext = new Mock<HttpContext>();
             httpContext.SetupGet(c => c.Request)
                        .Returns(httpRequest);
             httpContext.SetupGet(c => c.RequestServices)
-                       .Returns(Mock.Of<IServiceProvider>());
+                       .Returns(services.Object);
             var routeContext = new RouteContext(httpContext.Object);
             var controller = new TestController();
             var context = new ActionContext(routeContext, new ActionDescriptor())
@@ -44,13 +51,17 @@ namespace Microsoft.AspNet.Mvc.Core.Test
         public void Activate_SetsViewDatDictionary()
         {
             // Arrange
-            var service = new Mock<IServiceProvider>();
-            service.Setup(s => s.GetService(typeof(IModelMetadataProvider)))
-                   .Returns(Mock.Of<IModelMetadataProvider>());
+            var services = new Mock<IServiceProvider>();
+            services.Setup(s => s.GetService(typeof(IModelMetadataProvider)))
+                    .Returns(Mock.Of<IModelMetadataProvider>());
+            services.Setup(s => s.GetService(typeof(ICompositeViewEngine)))
+                    .Returns(Mock.Of<ICompositeViewEngine>());
+            services.Setup(s => s.GetService(typeof(IUrlHelper)))
+                    .Returns(Mock.Of<IUrlHelper>());
 
             var httpContext = new Mock<HttpContext>();
             httpContext.SetupGet(c => c.RequestServices)
-                       .Returns(service.Object);
+                       .Returns(services.Object);
             var routeContext = new RouteContext(httpContext.Object);
             var controller = new TestController();
             var context = new ActionContext(routeContext, new ActionDescriptor())
@@ -71,13 +82,15 @@ namespace Microsoft.AspNet.Mvc.Core.Test
         {
             // Arrange
             var urlHelper = Mock.Of<IUrlHelper>();
-            var service = new Mock<IServiceProvider>();
-            service.Setup(s => s.GetService(typeof(IUrlHelper)))
-                   .Returns(urlHelper);
+            var services = new Mock<IServiceProvider>();
+            services.Setup(s => s.GetService(typeof(IUrlHelper)))
+                    .Returns(urlHelper);
+            services.Setup(s => s.GetService(typeof(IModelMetadataProvider)))
+                    .Returns(Mock.Of<IModelMetadataProvider>());
 
             var httpContext = new Mock<HttpContext>();
             httpContext.SetupGet(c => c.RequestServices)
-                       .Returns(service.Object);
+                       .Returns(services.Object);
             var routeContext = new RouteContext(httpContext.Object);
             var controller = new TestController();
             var context = new ActionContext(routeContext, new ActionDescriptor())
@@ -97,11 +110,17 @@ namespace Microsoft.AspNet.Mvc.Core.Test
         public void Activate_IgnoresPropertiesThatAreNotDecoratedWithActivateAttribute()
         {
             // Arrange
+            var services = new Mock<IServiceProvider>();
+            services.Setup(s => s.GetService(typeof(IUrlHelper)))
+                    .Returns(Mock.Of<IUrlHelper>());
+            services.Setup(s => s.GetService(typeof(IModelMetadataProvider)))
+                    .Returns(Mock.Of<IModelMetadataProvider>());
+
             var httpContext = new Mock<HttpContext>();
             httpContext.SetupGet(c => c.Response)
                        .Returns(Mock.Of<HttpResponse>());
             httpContext.SetupGet(c => c.RequestServices)
-                       .Returns(Mock.Of<IServiceProvider>());
+                       .Returns(services.Object);
             var routeContext = new RouteContext(httpContext.Object);
             var controller = new TestController();
             var context = new ActionContext(routeContext, new ActionDescriptor())

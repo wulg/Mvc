@@ -9,10 +9,12 @@ namespace AutofacWebSite
 {
     public class Startup
     {
-        public void Configure(IBuilder app)
+        public void Configure(IApplicationBuilder app)
         {
+            var configuration = app.GetTestConfiguration();
+
             app.UseServices(services => {
-                services.AddMvc();
+                services.AddMvc(configuration);
                 services.AddTransient<HelloWorldBuilder>();
 
                 var builder = new ContainerBuilder();

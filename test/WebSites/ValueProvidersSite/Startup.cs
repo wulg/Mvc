@@ -9,7 +9,7 @@ namespace ValueProvidersSite
 {
     public class Startup
     {
-        public void Configure(IBuilder app)
+        public void Configure(IApplicationBuilder app)
         {
             var configuration = app.GetTestConfiguration();
 
@@ -18,7 +18,7 @@ namespace ValueProvidersSite
             {
                 // Add MVC services to the services container
                 services.AddMvc(configuration)
-                        .SetupOptions<MvcOptions>(options =>
+                        .Configure<MvcOptions>(options =>
                         {
                             options.ValueProviderFactories.Insert(1, new CustomValueProviderFactory());
                         });

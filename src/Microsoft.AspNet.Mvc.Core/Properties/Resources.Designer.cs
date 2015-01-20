@@ -11,6 +11,22 @@ namespace Microsoft.AspNet.Mvc.Core
             = new ResourceManager("Microsoft.AspNet.Mvc.Core.Resources", typeof(Resources).GetTypeInfo().Assembly);
 
         /// <summary>
+        /// More than one parameter is bound to the HTTP request's content.
+        /// </summary>
+        internal static string MultipleBodyParametersAreNotAllowed
+        {
+            get { return GetString("MultipleBodyParametersAreNotAllowed"); }
+        }
+
+        /// <summary>
+        /// More than one parameter is bound to the HTTP request's content.
+        /// </summary>
+        internal static string FormatMultipleBodyParametersAreNotAllowed()
+        {
+            return GetString("MultipleBodyParametersAreNotAllowed");
+        }
+
+        /// <summary>
         /// The provided anti-forgery token failed a custom data check.
         /// </summary>
         internal static string AntiForgeryToken_AdditionalDataCheckFailed
@@ -413,21 +429,21 @@ namespace Microsoft.AspNet.Mvc.Core
         /// <summary>
         /// The action descriptor must be of type '{0}'.
         /// </summary>
-        internal static string DefaultControllerFactory_ActionDescriptorMustBeReflected
+        internal static string ActionDescriptorMustBeBasedOnControllerAction
         {
-            get { return GetString("DefaultControllerFactory_ActionDescriptorMustBeReflected"); }
+            get { return GetString("ActionDescriptorMustBeBasedOnControllerAction"); }
         }
 
         /// <summary>
         /// The action descriptor must be of type '{0}'.
         /// </summary>
-        internal static string FormatDefaultControllerFactory_ActionDescriptorMustBeReflected(object p0)
+        internal static string FormatActionDescriptorMustBeBasedOnControllerAction(object p0)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("DefaultControllerFactory_ActionDescriptorMustBeReflected"), p0);
+            return string.Format(CultureInfo.CurrentCulture, GetString("ActionDescriptorMustBeBasedOnControllerAction"), p0);
         }
 
         /// <summary>
-        /// The value cannot be null or empty.
+        /// Value cannot be null or empty.
         /// </summary>
         internal static string ArgumentCannotBeNullOrEmpty
         {
@@ -435,7 +451,7 @@ namespace Microsoft.AspNet.Mvc.Core
         }
 
         /// <summary>
-        /// The value cannot be null or empty.
+        /// Value cannot be null or empty.
         /// </summary>
         internal static string FormatArgumentCannotBeNullOrEmpty()
         {
@@ -1352,6 +1368,166 @@ namespace Microsoft.AspNet.Mvc.Core
         internal static string FormatAttributeRoute_AggregateErrorMessage_ErrorNumber(object p0, object p1, object p2)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("AttributeRoute_AggregateErrorMessage_ErrorNumber"), p0, p1, p2);
+        }
+
+        /// <summary>
+        /// Could not find a replacement for view expansion token '{0}'.
+        /// </summary>
+        internal static string TemplatedViewLocationExpander_NoReplacementToken
+        {
+            get { return GetString("TemplatedViewLocationExpander_NoReplacementToken"); }
+        }
+
+        /// <summary>
+        /// Could not find a replacement for view expansion token '{0}'.
+        /// </summary>
+        internal static string FormatTemplatedViewLocationExpander_NoReplacementToken(object p0)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("TemplatedViewLocationExpander_NoReplacementToken"), p0);
+        }
+
+        /// <summary>
+        /// {0} must be executed before {1} can be invoked.
+        /// </summary>
+        internal static string TemplatedExpander_PopulateValuesMustBeInvokedFirst
+        {
+            get { return GetString("TemplatedExpander_PopulateValuesMustBeInvokedFirst"); }
+        }
+
+        /// <summary>
+        /// {0} must be executed before {1} can be invoked.
+        /// </summary>
+        internal static string FormatTemplatedExpander_PopulateValuesMustBeInvokedFirst(object p0, object p1)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("TemplatedExpander_PopulateValuesMustBeInvokedFirst"), p0, p1);
+        }
+
+        /// <summary>
+        /// The result of value factory cannot be null.
+        /// </summary>
+        internal static string TemplatedExpander_ValueFactoryCannotReturnNull
+        {
+            get { return GetString("TemplatedExpander_ValueFactoryCannotReturnNull"); }
+        }
+
+        /// <summary>
+        /// The result of value factory cannot be null.
+        /// </summary>
+        internal static string FormatTemplatedExpander_ValueFactoryCannotReturnNull()
+        {
+            return GetString("TemplatedExpander_ValueFactoryCannotReturnNull");
+        }
+
+        /// <summary>
+        /// A method '{0}' that defines attribute routed actions must not have attributes that implement '{1}' and do not implement '{2}':{3}{4}
+        /// </summary>
+        internal static string AttributeRoute_InvalidHttpConstraints
+        {
+            get { return GetString("AttributeRoute_InvalidHttpConstraints"); }
+        }
+
+        /// <summary>
+        /// A method '{0}' that defines attribute routed actions must not have attributes that implement '{1}' and do not implement '{2}':{3}{4}
+        /// </summary>
+        internal static string FormatAttributeRoute_InvalidHttpConstraints(object p0, object p1, object p2, object p3, object p4)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("AttributeRoute_InvalidHttpConstraints"), p0, p1, p2, p3, p4);
+        }
+
+        /// <summary>
+        /// Action '{0}' with route template '{1}' has '{2}' invalid '{3}' attributes.
+        /// </summary>
+        internal static string AttributeRoute_InvalidHttpConstraints_Item
+        {
+            get { return GetString("AttributeRoute_InvalidHttpConstraints_Item"); }
+        }
+
+        /// <summary>
+        /// Action '{0}' with route template '{1}' has '{2}' invalid '{3}' attributes.
+        /// </summary>
+        internal static string FormatAttributeRoute_InvalidHttpConstraints_Item(object p0, object p1, object p2, object p3)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("AttributeRoute_InvalidHttpConstraints_Item"), p0, p1, p2, p3);
+        }
+
+        /// <summary>
+        /// A method '{0}' must not define attribute routed actions and non attribute routed actions at the same time:{1}{2}
+        /// </summary>
+        internal static string AttributeRoute_MixedAttributeAndConventionallyRoutedActions_ForMethod
+        {
+            get { return GetString("AttributeRoute_MixedAttributeAndConventionallyRoutedActions_ForMethod"); }
+        }
+
+        /// <summary>
+        /// A method '{0}' must not define attribute routed actions and non attribute routed actions at the same time:{1}{2}
+        /// </summary>
+        internal static string FormatAttributeRoute_MixedAttributeAndConventionallyRoutedActions_ForMethod(object p0, object p1, object p2)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("AttributeRoute_MixedAttributeAndConventionallyRoutedActions_ForMethod"), p0, p1, p2);
+        }
+
+        /// <summary>
+        /// Action: '{0}' - Template: '{1}'
+        /// </summary>
+        internal static string AttributeRoute_MixedAttributeAndConventionallyRoutedActions_ForMethod_Item
+        {
+            get { return GetString("AttributeRoute_MixedAttributeAndConventionallyRoutedActions_ForMethod_Item"); }
+        }
+
+        /// <summary>
+        /// Action: '{0}' - Template: '{1}'
+        /// </summary>
+        internal static string FormatAttributeRoute_MixedAttributeAndConventionallyRoutedActions_ForMethod_Item(object p0, object p1)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("AttributeRoute_MixedAttributeAndConventionallyRoutedActions_ForMethod_Item"), p0, p1);
+        }
+
+        /// <summary>
+        /// (none)
+        /// </summary>
+        internal static string AttributeRoute_NullTemplateRepresentation
+        {
+            get { return GetString("AttributeRoute_NullTemplateRepresentation"); }
+        }
+
+        /// <summary>
+        /// (none)
+        /// </summary>
+        internal static string FormatAttributeRoute_NullTemplateRepresentation()
+        {
+            return GetString("AttributeRoute_NullTemplateRepresentation");
+        }
+
+        /// <summary>
+        /// Multiple actions matched. The following actions matched route data and had all constraints satisfied:{0}{0}{1}
+        /// </summary>
+        internal static string DefaultActionSelector_AmbiguousActions
+        {
+            get { return GetString("DefaultActionSelector_AmbiguousActions"); }
+        }
+
+        /// <summary>
+        /// Multiple actions matched. The following actions matched route data and had all constraints satisfied:{0}{0}{1}
+        /// </summary>
+        internal static string FormatDefaultActionSelector_AmbiguousActions(object p0, object p1)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("DefaultActionSelector_AmbiguousActions"), p0, p1);
+        }
+
+        /// <summary>
+        /// Could not find file: {0}
+        /// </summary>
+        internal static string FileResult_InvalidPath
+        {
+            get { return GetString("FileResult_InvalidPath"); }
+        }
+
+        /// <summary>
+        /// Could not find file: {0}
+        /// </summary>
+        internal static string FormatFileResult_InvalidPath(object p0)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("FileResult_InvalidPath"), p0);
         }
 
         private static string GetString(string name, params string[] formatterNames)

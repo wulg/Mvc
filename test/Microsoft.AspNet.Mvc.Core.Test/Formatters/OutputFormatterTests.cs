@@ -41,7 +41,7 @@ namespace Microsoft.AspNet.Mvc.Test
         }
 
         [Theory]
-        [MemberData("SelectResponseCharacterEncodingData")]
+        [MemberData(nameof(SelectResponseCharacterEncodingData))]
         public void SelectResponseCharacterEncoding_SelectsEncoding(string acceptCharsetHeaders,
                                                                     string requestEncoding,
                                                                     string[] supportedEncodings,
@@ -89,7 +89,7 @@ namespace Microsoft.AspNet.Mvc.Test
 
             // Act & Assert
             var ex = Assert.Throws<InvalidOperationException>(
-                        () => testFormatter.WriteResponseContentHeaders(formatterContext));
+                        () => testFormatter.WriteResponseHeaders(formatterContext));
             Assert.Equal("No encoding found for output formatter " +
                          "'Microsoft.AspNet.Mvc.Test.OutputFormatterTests+TestOutputFormatter'." +
                          " There must be at least one supported encoding registered in order for the" +
@@ -111,13 +111,163 @@ namespace Microsoft.AspNet.Mvc.Test
             formatterContext.ActionContext = actionContext;
 
             // Act
-            testFormatter.WriteResponseContentHeaders(formatterContext);
+            testFormatter.WriteResponseHeaders(formatterContext);
 
             // Assert
             Assert.Equal(Encodings.UTF16EncodingLittleEndian.WebName, formatterContext.SelectedEncoding.WebName);
             Assert.Equal(Encodings.UTF16EncodingLittleEndian, formatterContext.SelectedEncoding);
             Assert.Equal("application/doesNotSetContext;charset=" + Encodings.UTF16EncodingLittleEndian.WebName,
                          formatterContext.SelectedContentType.RawValue);
+        }
+
+        [Fact]
+        public void CanWriteResult_ForNullContentType_UsesFirstEntryInSupportedContentTypes()
+        {
+            // Arrange
+            var context = new OutputFormatterContext();
+            var formatter = new TestOutputFormatter();
+
+            // Act
+            var result = formatter.CanWriteResult(context, null);
+
+            // Assert
+            Assert.True(result);
+            Assert.Equal(formatter.SupportedMediaTypes[0].RawValue, context.SelectedContentType.RawValue);
+        }
+
+        [Fact]
+        public void GetSupportedContentTypes_ReturnsNull_ForUnsupportedType()
+        {
+            // Arrange
+            var formatter = new TypeSpecificFormatter();
+
+            formatter.SupportedMediaTypes.Add(MediaTypeHeaderValue.Parse("application/json"));
+
+            formatter.SupportedTypes.Add(typeof(int));
+
+            // Act
+            var contentTypes = formatter.GetSupportedContentTypes(
+                declaredType: typeof(string), 
+                runtimeType: typeof(string), 
+                contentType: null);
+
+            // Assert
+            Assert.Null(contentTypes);
+        }
+
+        [Fact]
+        public void CanWrite_ReturnsFalse_ForUnsupportedType()
+        {
+            // Arrange
+            var context = new OutputFormatterContext();
+            context.DeclaredType = typeof(string);
+            context.Object = "Hello, world!";
+
+            var formatter = new TypeSpecificFormatter();
+
+            formatter.SupportedMediaTypes.Add(MediaTypeHeaderValue.Parse("application/json"));
+
+            formatter.SupportedTypes.Add(typeof(int));
+
+            // Act
+            var result = formatter.CanWriteResult(context, formatter.SupportedMediaTypes[0]);
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public void GetSupportedContentTypes_ReturnsAllContentTypes_WithContentTypeNull()
+        {
+            // Arrange
+            var formatter = new TestOutputFormatter();
+
+            formatter.SupportedMediaTypes.Clear();
+            formatter.SupportedMediaTypes.Add(MediaTypeHeaderValue.Parse("application/json"));
+            formatter.SupportedMediaTypes.Add(MediaTypeHeaderValue.Parse("application/xml"));
+
+            // Act
+            var contentTypes = formatter.GetSupportedContentTypes(typeof(int), typeof(int), contentType: null);
+
+            // Assert
+            Assert.Equal(2, contentTypes.Count);
+            Assert.Single(contentTypes, ct => ct.RawValue == "application/json");
+            Assert.Single(contentTypes, ct => ct.RawValue == "application/xml");
+        }
+
+        [Fact]
+        public void GetSupportedContentTypes_ReturnsMatchingContentTypes_WithContentType()
+        {
+            // Arrange
+            var formatter = new TestOutputFormatter();
+
+            formatter.SupportedMediaTypes.Clear();
+            formatter.SupportedMediaTypes.Add(MediaTypeHeaderValue.Parse("application/json"));
+            formatter.SupportedMediaTypes.Add(MediaTypeHeaderValue.Parse("text/xml"));
+
+            // Act
+            var contentTypes = formatter.GetSupportedContentTypes(
+                typeof(int), 
+                typeof(int), 
+                contentType: MediaTypeHeaderValue.Parse("application/*"));
+
+            // Assert
+            var contentType = Assert.Single(contentTypes);
+            Assert.Equal("application/json", contentType.RawValue);
+        }
+
+        [Fact]
+        public void GetSupportedContentTypes_ReturnsMatchingContentTypes_NoMatches()
+        {
+            // Arrange
+            var formatter = new TestOutputFormatter();
+
+            formatter.SupportedMediaTypes.Clear();
+            formatter.SupportedMediaTypes.Add(MediaTypeHeaderValue.Parse("application/json"));
+            formatter.SupportedMediaTypes.Add(MediaTypeHeaderValue.Parse("text/xml"));
+
+            // Act
+            var contentTypes = formatter.GetSupportedContentTypes(
+                typeof(int),
+                typeof(int),
+                contentType: MediaTypeHeaderValue.Parse("application/xml"));
+
+            // Assert
+            Assert.Null(contentTypes);
+        }
+
+        [Fact]
+        public void GetSupportedContentTypes_ReturnsAllContentTypes_ReturnsNullWithNoSupportedContentTypes()
+        {
+            // Arrange
+            var formatter = new TestOutputFormatter();
+
+            // Intentionally empty
+            formatter.SupportedMediaTypes.Clear();
+
+            // Act
+            var contentTypes = formatter.GetSupportedContentTypes(
+                typeof(int),
+                typeof(int),
+                contentType: null);
+
+            // Assert
+            Assert.Null(contentTypes);
+        }
+
+        private class TypeSpecificFormatter : OutputFormatter
+        {
+            public List<Type> SupportedTypes { get; } = new List<Type>();
+
+            protected override bool CanWriteType(Type declaredType, Type runtimeType)
+            {
+                return SupportedTypes.Contains(declaredType ?? runtimeType);
+            }
+
+            public override Task WriteResponseBodyAsync(OutputFormatterContext context)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private class TestOutputFormatter : OutputFormatter

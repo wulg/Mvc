@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-#if NET45
+#if ASPNET50
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -265,6 +265,37 @@ namespace Microsoft.AspNet.Mvc.ModelBinding.Test
             var error = Assert.Single(bindingContext.ModelState["user"].Errors);
             Assert.Equal("Password does not meet complexity requirements.", error.ErrorMessage);
         }
+
+        [Fact]
+        public async Task BindModel_UsesTryAddModelError()
+        {
+            // Arrange
+            var validatorProvider = new DataAnnotationsModelValidatorProvider();
+            var binder = CreateBinderWithDefaults();
+            var valueProvider = new SimpleHttpValueProvider
+            {
+                { "user.password", "password" },
+                { "user.confirmpassword", "password2" },
+            };
+            var bindingContext = CreateBindingContext(binder, valueProvider, typeof(User), validatorProvider);
+            bindingContext.ModelState.MaxAllowedErrors = 2;
+            bindingContext.ModelState.AddModelError("key1", "error1");
+            bindingContext.ModelName = "user";
+
+            // Act
+            await binder.BindModelAsync(bindingContext);
+
+            // Assert
+            var modelState = bindingContext.ModelState["user.confirmpassword"];
+            Assert.Empty(modelState.Errors);
+
+            modelState = bindingContext.ModelState["user"];
+            Assert.Empty(modelState.Errors);
+
+            var error = Assert.Single(bindingContext.ModelState[""].Errors);
+            Assert.IsType<TooManyModelErrorsException>(error.Exception);
+        }
+
 
         private static ModelBindingContext CreateBindingContext(IModelBinder binder,
                                                                 IValueProvider valueProvider,

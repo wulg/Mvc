@@ -4,27 +4,28 @@
 using System;
 using System.IO;
 using System.Reflection;
-using System.Threading.Tasks;
-using InlineConstraints;
-using Microsoft.AspNet.Builder;
-using Microsoft.AspNet.Routing;
-using Microsoft.AspNet.TestHost;
 using Microsoft.Framework.DependencyInjection;
 using Microsoft.Framework.DependencyInjection.Fallback;
+using Microsoft.Framework.Logging;
 using Microsoft.Framework.Runtime;
 using Microsoft.Framework.Runtime.Infrastructure;
-using Xunit;
-using Microsoft.Framework.ConfigurationModel;
-using Microsoft.Framework.Logging;
 
 namespace Microsoft.AspNet.Mvc.FunctionalTests
 {
     public static class TestHelper
     {
+        // Path from Mvc\\test\\Microsoft.AspNet.Mvc.FunctionalTests
+        private static readonly string WebsitesDirectoryPath = Path.Combine("..", "WebSites");
+
         public static IServiceProvider CreateServices(string applicationWebSiteName)
         {
+            return CreateServices(applicationWebSiteName, WebsitesDirectoryPath);
+        }
+
+        public static IServiceProvider CreateServices(string applicationWebSiteName, string applicationPath)
+        {
             var originalProvider = CallContextServiceLocator.Locator.ServiceProvider;
-            var appEnvironment = originalProvider.GetService<IApplicationEnvironment>();
+            var appEnvironment = originalProvider.GetRequiredService<IApplicationEnvironment>();
 
             // When an application executes in a regular context, the application base path points to the root
             // directory where the application is located, for example MvcSample.Web. However, when executing
@@ -33,7 +34,8 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
             // To compensate for this, we need to calculate the original path and override the application
             // environment value so that components like the view engine work properly in the context of the
             // test.
-            var appBasePath = CalculateApplicationBasePath(appEnvironment, applicationWebSiteName);
+            var appBasePath =  CalculateApplicationBasePath(appEnvironment, applicationWebSiteName, applicationPath);
+
             var services = new ServiceCollection();
             services.AddInstance(
                 typeof(IApplicationEnvironment),
@@ -45,7 +47,7 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
 
             var configuration = new TestConfigurationProvider();
             configuration.Configuration.Set(
-                typeof(IControllerAssemblyProvider).FullName,
+                typeof(IAssemblyProvider).FullName,
                 providerType.AssemblyQualifiedName);
 
             services.AddInstance(
@@ -61,16 +63,22 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
 
         // Calculate the path relative to the application base path.
         public static string CalculateApplicationBasePath(IApplicationEnvironment appEnvironment,
-                                                          string applicationWebSiteName)
+                                                          string applicationWebSiteName, string websitePath)
         {
-            // Mvc/test/Microsoft.AspNet.Mvc.FunctionalTests
-            var appBase = appEnvironment.ApplicationBasePath;
-
-            // Mvc/test
-            var test = Path.GetDirectoryName(appBase);
-
             // Mvc/test/WebSites/applicationWebSiteName
-            return Path.GetFullPath(Path.Combine(appBase, "..", "WebSites", applicationWebSiteName));
+            return Path.GetFullPath(
+                Path.Combine(appEnvironment.ApplicationBasePath, websitePath, applicationWebSiteName));
+        }
+
+        /// <summary>
+        /// Creates a disposable action that replaces the service provider <see cref="CallContextServiceLocator.Locator"/>
+        /// with the passed in service that is switched back on <see cref="IDisposable.Dispose"/>.
+        /// </summary>
+        /// <remarks>This is required for config since it uses the static property to get to
+        /// <see cref="IApplicationEnvironment"/>.</remarks>
+        public static IDisposable ReplaceCallContextServiceLocationService(IServiceProvider serviceProvider)
+        {
+            return new CallContextProviderAction(serviceProvider);
         }
 
         private static Type CreateAssemblyProviderType(string siteName)
@@ -81,6 +89,22 @@ namespace Microsoft.AspNet.Mvc.FunctionalTests
 
             var providerType = typeof(TestAssemblyProvider<>).MakeGenericType(assembly.GetExportedTypes()[0]);
             return providerType;
+        }
+
+        private sealed class CallContextProviderAction : IDisposable
+        {
+            private readonly IServiceProvider _originalProvider;
+
+            public CallContextProviderAction(IServiceProvider provider)
+            {
+                _originalProvider = CallContextServiceLocator.Locator.ServiceProvider;
+                CallContextServiceLocator.Locator.ServiceProvider = provider;
+            }
+
+            public void Dispose()
+            {
+                CallContextServiceLocator.Locator.ServiceProvider = _originalProvider;
+            }
         }
     }
 }

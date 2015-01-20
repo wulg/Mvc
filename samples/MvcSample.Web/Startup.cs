@@ -1,58 +1,75 @@
 using System;
+using System.IO;
 using Microsoft.AspNet.Builder;
+using Microsoft.AspNet.Mvc;
+using Microsoft.AspNet.Mvc.Razor;
 using Microsoft.AspNet.Routing;
 using Microsoft.Framework.ConfigurationModel;
 using Microsoft.Framework.DependencyInjection;
 using MvcSample.Web.Filters;
 using MvcSample.Web.Services;
 
-#if NET45 
+#if ASPNET50 
 using Autofac;
 using Microsoft.Framework.DependencyInjection.Autofac;
-using Microsoft.Framework.OptionsModel;
 #endif
 
 namespace MvcSample.Web
 {
     public class Startup
     {
-        public void Configure(IBuilder app)
+        public void Configure(IApplicationBuilder app)
         {
             app.UseFileServer();
-#if NET45
+#if ASPNET50
+            // We use Path.Combine here so that it works on platforms other than Windows as well.
             var configuration = new Configuration()
-                                    .AddJsonFile(@"App_Data\config.json")
-                                    .AddEnvironmentVariables();
-
+                                        .AddJsonFile(Path.Combine("App_Data", "config.json"))
+                                        .AddEnvironmentVariables();
             string diSystem;
 
-            if (configuration.TryGet("DependencyInjection", out diSystem) && 
+            if (configuration.TryGet("DependencyInjection", out diSystem) &&
                 diSystem.Equals("AutoFac", StringComparison.OrdinalIgnoreCase))
             {
                 app.UseMiddleware<MonitoringMiddlware>();
 
-                var services = new ServiceCollection();
+                app.UseServices(services =>
+                {
+                    services.AddMvc();
+                    services.AddSingleton<PassThroughAttribute>();
+                    services.AddSingleton<UserNameService>();
+                    services.AddTransient<ITestService, TestService>();
 
-                services.AddMvc();
-                services.AddSingleton<PassThroughAttribute>();
-                services.AddSingleton<UserNameService>();
-                services.AddTransient<ITestService, TestService>();                
-                services.Add(OptionsServices.GetDefaultServices());
+                    // Setup services with a test AssemblyProvider so that only the
+                    // sample's assemblies are loaded. This prevents loading controllers from other assemblies
+                    // when the sample is used in the Functional Tests.
+                    services.AddTransient<IAssemblyProvider, TestAssemblyProvider<Startup>>();
+                    services.Configure<MvcOptions>(options =>
+                    {
+                        options.Filters.Add(typeof(PassThroughAttribute), order: 17);
+                    });
+                    services.Configure<RazorViewEngineOptions>(options =>
+                    {
+                        var expander = new LanguageViewLocationExpander(
+                            context => context.HttpContext.Request.Query["language"]);
+                        options.ViewLocationExpanders.Insert(0, expander);
+                    });
 
-                // Create the autofac container 
-                ContainerBuilder builder = new ContainerBuilder();
+                    // Create the autofac container 
+                    ContainerBuilder builder = new ContainerBuilder();
 
-                // Create the container and use the default application services as a fallback 
-                AutofacRegistration.Populate(
-                    builder,
-                    services,
-                    fallbackServiceProvider: app.ApplicationServices);
+                    // Create the container and use the default application services as a fallback 
+                    AutofacRegistration.Populate(
+                        builder,
+                        services,
+                        fallbackServiceProvider: app.ApplicationServices);
 
-                builder.RegisterModule<MonitoringModule>();
+                    builder.RegisterModule<MonitoringModule>();
 
-                IContainer container = builder.Build();
+                    IContainer container = builder.Build();
 
-                app.UseServices(container.Resolve<IServiceProvider>());
+                    return container.Resolve<IServiceProvider>();
+                });
             }
             else
 #endif
@@ -63,6 +80,15 @@ namespace MvcSample.Web
                     services.AddSingleton<PassThroughAttribute>();
                     services.AddSingleton<UserNameService>();
                     services.AddTransient<ITestService, TestService>();
+                    // Setup services with a test AssemblyProvider so that only the
+                    // sample's assemblies are loaded. This prevents loading controllers from other assemblies
+                    // when the sample is used in the Functional Tests.
+                    services.AddTransient<IAssemblyProvider, TestAssemblyProvider<Startup>>();
+
+                    services.Configure<MvcOptions>(options =>
+                    {
+                        options.Filters.Add(typeof(PassThroughAttribute), order: 17);
+                    });
                 });
             }
 

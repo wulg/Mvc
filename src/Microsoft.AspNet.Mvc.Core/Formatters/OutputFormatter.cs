@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNet.Mvc.Core;
 using Microsoft.AspNet.Mvc.HeaderValueAbstractions;
@@ -17,18 +16,8 @@ namespace Microsoft.AspNet.Mvc
     /// </summary>
     public abstract class OutputFormatter : IOutputFormatter
     {
-        /// <summary>
-        /// Gets the mutable collection of character encodings supported by
-        /// this <see cref="OutputFormatter"/> instance. The encodings are
-        /// used when writing the data.
-        /// </summary>
-        public IList<Encoding> SupportedEncodings { get; private set; }
-
-        /// <summary>
-        /// Gets the mutable collection of <see cref="MediaTypeHeaderValue"/> elements supported by
-        /// this <see cref="OutputFormatter"/> instance.
-        /// </summary>
-        public IList<MediaTypeHeaderValue> SupportedMediaTypes { get; private set; }
+        // using a field so we can return it as both IList and IReadOnlyList
+        private readonly List<MediaTypeHeaderValue> _supportedMediaTypes;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="OutputFormatter"/> class.
@@ -36,7 +25,71 @@ namespace Microsoft.AspNet.Mvc
         protected OutputFormatter()
         {
             SupportedEncodings = new List<Encoding>();
-            SupportedMediaTypes = new List<MediaTypeHeaderValue>();
+            _supportedMediaTypes = new List<MediaTypeHeaderValue>();
+        }
+
+        /// <summary>
+        /// Gets the mutable collection of character encodings supported by
+        /// this <see cref="OutputFormatter"/>. The encodings are
+        /// used when writing the data.
+        /// </summary>
+        public IList<Encoding> SupportedEncodings { get; private set; }
+
+        /// <summary>
+        /// Gets the mutable collection of <see cref="MediaTypeHeaderValue"/> elements supported by
+        /// this <see cref="OutputFormatter"/>.
+        /// </summary>
+        public IList<MediaTypeHeaderValue> SupportedMediaTypes
+        {
+            get { return _supportedMediaTypes; }
+        }
+
+        /// <summary>
+        /// Returns a value indicating whether or not the given type can be written by this serializer.
+        /// </summary>
+        /// <param name="declaredType">The declared type.</param>
+        /// <param name="runtimeType">The runtime type.</param>
+        /// <returns><c>true</c> if the type can be written, otherwise <c>false</c>.</returns>
+        protected virtual bool CanWriteType(Type declaredType, Type runtimeType)
+        {
+            return true;
+        }
+
+        /// <inheritdoc />
+        public virtual IReadOnlyList<MediaTypeHeaderValue> GetSupportedContentTypes(
+            Type declaredType,
+            Type runtimeType,
+            MediaTypeHeaderValue contentType)
+        {
+            if (!CanWriteType(declaredType, runtimeType))
+            {
+                return null;
+            }
+
+            if (contentType == null)
+            {
+                // If contentType is null, then any type we support is valid.
+                return _supportedMediaTypes.Count > 0 ? _supportedMediaTypes : null;
+            }
+            else
+            {
+                List<MediaTypeHeaderValue> mediaTypes = null;
+
+                foreach (var mediaType in _supportedMediaTypes)
+                {
+                    if (mediaType.IsSubsetOf(contentType))
+                    {
+                        if (mediaTypes == null)
+                        {
+                            mediaTypes = new List<MediaTypeHeaderValue>();
+                        }
+
+                        mediaTypes.Add(mediaType);
+                    }
+                }
+
+                return mediaTypes;
+            }
         }
 
         /// <summary>
@@ -46,7 +99,7 @@ namespace Microsoft.AspNet.Mvc
         /// <param name="context">The formatter context associated with the call.
         /// </param>
         /// <returns>The <see cref="Encoding"/> to use when reading the request or writing the response.</returns>
-        public virtual Encoding SelectCharacterEncoding(OutputFormatterContext context)
+        public virtual Encoding SelectCharacterEncoding([NotNull] OutputFormatterContext context)
         {
             var request = context.ActionContext.HttpContext.Request;
             var encoding = MatchAcceptCharacterEncoding(request.AcceptCharset);
@@ -68,28 +121,15 @@ namespace Microsoft.AspNet.Mvc
             return encoding;
         }
 
-        /// <summary>
-        /// Gets the type of the object to be serialized.
-        /// </summary>
-        /// <param name="context">The context which contains the object to be serialized.</param>
-        /// <returns>The type of the object to be serialized.</returns>
-        public virtual Type GetObjectType([NotNull] OutputFormatterContext context)
+        /// <inheritdoc />
+        public virtual bool CanWriteResult([NotNull] OutputFormatterContext context, MediaTypeHeaderValue contentType)
         {
-            if (context.DeclaredType == null ||
-                context.DeclaredType == typeof(object))
+            var runtimeType = context.Object == null ? null : context.Object.GetType();
+            if (!CanWriteType(context.DeclaredType, runtimeType))
             {
-                if (context.Object != null)
-                {
-                    return context.Object.GetType();
-                }
+                return false;
             }
 
-            return context.DeclaredType;
-        }
-
-        /// <inheritdoc />
-        public virtual bool CanWriteResult(OutputFormatterContext context, MediaTypeHeaderValue contentType)
-        {
             MediaTypeHeaderValue mediaType = null;
             if (contentType == null)
             {
@@ -115,17 +155,17 @@ namespace Microsoft.AspNet.Mvc
         }
 
         /// <inheritdoc />
-        public async Task WriteAsync(OutputFormatterContext context)
+        public async Task WriteAsync([NotNull] OutputFormatterContext context)
         {
-            WriteResponseContentHeaders(context);
+            WriteResponseHeaders(context);
             await WriteResponseBodyAsync(context);
         }
 
         /// <summary>
-        /// Sets the content-type headers with charset value to the HttpResponse.
+        /// Sets the headers on <see cref="Microsoft.AspNet.Http.HttpResponse"/> object.
         /// </summary>
         /// <param name="context">The formatter context associated with the call.</param>
-        public virtual void WriteResponseContentHeaders(OutputFormatterContext context)
+        public virtual void WriteResponseHeaders([NotNull] OutputFormatterContext context)
         {
             var selectedMediaType = context.SelectedContentType;
 
@@ -158,7 +198,7 @@ namespace Microsoft.AspNet.Mvc
         /// </summary>
         /// <param name="context">The formatter context associated with the call.</param>
         /// <returns>A task which can write the response body.</returns>
-        public abstract Task WriteResponseBodyAsync(OutputFormatterContext context);
+        public abstract Task WriteResponseBodyAsync([NotNull] OutputFormatterContext context);
 
         private Encoding MatchAcceptCharacterEncoding(string acceptCharsetHeader)
         {

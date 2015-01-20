@@ -15,7 +15,6 @@ namespace Microsoft.AspNet.Mvc
 {
     public abstract class FilterActionInvoker : IActionInvoker
     {
-        private readonly IActionBindingContextProvider _bindingProvider;
         private readonly INestedProviderManager<FilterProviderContext> _filterProvider;
 
         private IFilter[] _filters;
@@ -33,17 +32,17 @@ namespace Microsoft.AspNet.Mvc
 
         public FilterActionInvoker(
             [NotNull] ActionContext actionContext,
-            [NotNull] IActionBindingContextProvider bindingContextProvider,
             [NotNull] INestedProviderManager<FilterProviderContext> filterProvider)
         {
             ActionContext = actionContext;
-            _bindingProvider = bindingContextProvider;
             _filterProvider = filterProvider;
         }
 
         protected ActionContext ActionContext { get; private set; }
 
         protected abstract Task<IActionResult> InvokeActionAsync(ActionExecutingContext actionExecutingContext);
+
+        protected abstract Task<IDictionary<string, object>> GetActionArgumentsAsync([NotNull] ActionContext context);
 
         public virtual async Task InvokeAsync()
         {
@@ -217,68 +216,9 @@ namespace Microsoft.AspNet.Mvc
         private async Task InvokeActionMethodWithFilters()
         {
             _cursor.SetStage(FilterStage.ActionFilters);
-
-            var arguments = await GetActionArguments(ActionContext.ModelState);
+            var arguments = await GetActionArgumentsAsync(ActionContext);
             _actionExecutingContext = new ActionExecutingContext(ActionContext, _filters, arguments);
-
             await InvokeActionMethodFilter();
-        }
-
-        internal async Task<IDictionary<string, object>> GetActionArguments(ModelStateDictionary modelState)
-        {
-            var actionBindingContext = await _bindingProvider.GetActionBindingContextAsync(ActionContext);
-            var parameters = ActionContext.ActionDescriptor.Parameters;
-            var metadataProvider = actionBindingContext.MetadataProvider;
-            var parameterValues = new Dictionary<string, object>(parameters.Count, StringComparer.Ordinal);
-
-            for (var i = 0; i < parameters.Count; i++)
-            {
-                var parameter = parameters[i];
-                if (parameter.BodyParameterInfo != null)
-                {
-                    var parameterType = parameter.BodyParameterInfo.ParameterType;
-                    var formatterContext = new InputFormatterContext(actionBindingContext.ActionContext,
-                                                                     parameterType);
-                    var inputFormatter = actionBindingContext.InputFormatterSelector.SelectFormatter(
-                        formatterContext);
-                    if (inputFormatter == null)
-                    {
-                        var request = ActionContext.HttpContext.Request;
-                        var unsupportedContentType = Resources.FormatUnsupportedContentType(request.ContentType);
-                        ActionContext.ModelState.AddModelError(parameter.Name, unsupportedContentType);
-                    }
-                    else
-                    {
-                        parameterValues[parameter.Name] = await inputFormatter.ReadAsync(formatterContext);
-                    }
-                }
-                else
-                {
-                    var parameterType = parameter.ParameterBindingInfo.ParameterType;
-                    var modelMetadata = metadataProvider.GetMetadataForType(
-                        modelAccessor: null,
-                        modelType: parameterType);
-
-                    var modelBindingContext = new ModelBindingContext
-                    {
-                        ModelName = parameter.Name,
-                        ModelState = modelState,
-                        ModelMetadata = modelMetadata,
-                        ModelBinder = actionBindingContext.ModelBinder,
-                        ValueProvider = actionBindingContext.ValueProvider,
-                        ValidatorProvider = actionBindingContext.ValidatorProvider,
-                        MetadataProvider = metadataProvider,
-                        HttpContext = actionBindingContext.ActionContext.HttpContext,
-                        FallbackToEmptyPrefix = true
-                    };
-                    if (await actionBindingContext.ModelBinder.BindModelAsync(modelBindingContext))
-                    {
-                        parameterValues[parameter.Name] = modelBindingContext.Model;
-                    }
-                }
-            }
-
-            return parameterValues;
         }
 
         private async Task<ActionExecutedContext> InvokeActionMethodFilter()

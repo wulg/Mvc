@@ -11,6 +11,7 @@ using Microsoft.AspNet.Mvc.Logging;
 using Microsoft.AspNet.Routing;
 using Microsoft.Framework.DependencyInjection;
 using Microsoft.Framework.Logging;
+using Microsoft.Framework.OptionsModel;
 
 namespace Microsoft.AspNet.Mvc
 {
@@ -22,7 +23,7 @@ namespace Microsoft.AspNet.Mvc
         {
             // The contract of this method is to check that the values coming in from the route are valid;
             // that they match an existing action, setting IsBound = true if the values are OK.
-            var actionSelector = context.Context.RequestServices.GetService<IActionSelector>();
+            var actionSelector = context.Context.RequestServices.GetRequiredService<IActionSelector>();
             context.IsBound = actionSelector.HasValidAction(context);
 
             // We return null here because we're not responsible for generating the url, the route is.
@@ -32,7 +33,7 @@ namespace Microsoft.AspNet.Mvc
         public async Task RouteAsync([NotNull] RouteContext context)
         {
             var services = context.HttpContext.RequestServices;
-            
+
             // Verify if AddMvc was done before calling UseMvc
             // We use the MvcMarkerService to make sure if all the services were added.
             MvcServicesHelper.ThrowIfMvcNotRegistered(services);
@@ -46,12 +47,12 @@ namespace Microsoft.AspNet.Mvc
             EnsureLogger(context.HttpContext);
             using (_logger.BeginScope("MvcRouteHandler.RouteAsync"))
             {
-                var actionSelector = services.GetService<IActionSelector>();
+                var actionSelector = services.GetRequiredService<IActionSelector>();
                 var actionDescriptor = await actionSelector.SelectAsync(context);
 
                 if (actionDescriptor == null)
                 {
-                    if (_logger.IsEnabled(TraceType.Information))
+                    if (_logger.IsEnabled(TraceType.Verbose))
                     {
                         _logger.WriteValues(new MvcRouteHandlerRouteAsyncValues()
                         {
@@ -64,23 +65,26 @@ namespace Microsoft.AspNet.Mvc
                     return;
                 }
 
-            if (actionDescriptor.RouteValueDefaults != null)
-            {
-                foreach (var kvp in actionDescriptor.RouteValueDefaults)
+                if (actionDescriptor.RouteValueDefaults != null)
                 {
-                    if (!context.RouteData.Values.ContainsKey(kvp.Key))
+                    foreach (var kvp in actionDescriptor.RouteValueDefaults)
                     {
-                        context.RouteData.Values.Add(kvp.Key, kvp.Value);
+                        if (!context.RouteData.Values.ContainsKey(kvp.Key))
+                        {
+                            context.RouteData.Values.Add(kvp.Key, kvp.Value);
+                        }
                     }
                 }
-            }
 
                 var actionContext = new ActionContext(context.HttpContext, context.RouteData, actionDescriptor);
 
-                var contextAccessor = services.GetService<IContextAccessor<ActionContext>>();
+                var optionsAccessor = services.GetRequiredService<IOptions<MvcOptions>>();
+                actionContext.ModelState.MaxAllowedErrors = optionsAccessor.Options.MaxModelValidationErrors;
+
+                var contextAccessor = services.GetRequiredService<IContextAccessor<ActionContext>>();
                 using (contextAccessor.SetContextSource(() => actionContext, PreventExchange))
                 {
-                    var invokerFactory = services.GetService<IActionInvokerFactory>();
+                    var invokerFactory = services.GetRequiredService<IActionInvokerFactory>();
                     var invoker = invokerFactory.CreateInvoker(actionContext);
                     if (invoker == null)
                     {
@@ -92,7 +96,7 @@ namespace Microsoft.AspNet.Mvc
                         // tacking on extra data on the exception?)
                         ex.Data.Add("AD", actionDescriptor);
 
-                        if (_logger.IsEnabled(TraceType.Information))
+                        if (_logger.IsEnabled(TraceType.Verbose))
                         {
                             _logger.WriteValues(new MvcRouteHandlerRouteAsyncValues()
                             {
@@ -108,7 +112,7 @@ namespace Microsoft.AspNet.Mvc
                     await invoker.InvokeAsync();
                     context.IsHandled = true;
 
-                    if (_logger.IsEnabled(TraceType.Information))
+                    if (_logger.IsEnabled(TraceType.Verbose))
                     {
                         _logger.WriteValues(new MvcRouteHandlerRouteAsyncValues()
                         {
@@ -130,7 +134,7 @@ namespace Microsoft.AspNet.Mvc
         {
             if (_logger == null)
             {
-                var factory = context.RequestServices.GetService<ILoggerFactory>();
+                var factory = context.RequestServices.GetRequiredService<ILoggerFactory>();
                 _logger = factory.Create<MvcRouteHandler>();
             }
         }

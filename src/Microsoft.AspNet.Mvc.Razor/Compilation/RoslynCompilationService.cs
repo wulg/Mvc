@@ -7,12 +7,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
+using System.Reflection.PortableExecutable;
+using System.Runtime.InteropServices;
 using Microsoft.AspNet.FileSystems;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
-using Microsoft.CodeAnalysis.Text;
 using Microsoft.Framework.Runtime;
 
 namespace Microsoft.AspNet.Mvc.Razor.Compilation
@@ -22,14 +22,17 @@ namespace Microsoft.AspNet.Mvc.Razor.Compilation
     /// </summary>
     public class RoslynCompilationService : ICompilationService
     {
-        private readonly ConcurrentDictionary<string, MetadataReference> _metadataFileCache =
-            new ConcurrentDictionary<string, MetadataReference>(StringComparer.OrdinalIgnoreCase);
+        private readonly Lazy<bool> _supportsPdbGeneration = new Lazy<bool>(SupportsPdbGeneration);
+        private readonly ConcurrentDictionary<string, AssemblyMetadata> _metadataFileCache =
+            new ConcurrentDictionary<string, AssemblyMetadata>(StringComparer.OrdinalIgnoreCase);
 
         private readonly ILibraryManager _libraryManager;
         private readonly IApplicationEnvironment _environment;
-        private readonly IAssemblyLoaderEngine _loader;
+        private readonly IAssemblyLoadContext _loader;
 
         private readonly Lazy<List<MetadataReference>> _applicationReferences;
+
+        private readonly string _classPrefix;
 
         /// <summary>
         /// Initalizes a new instance of the <see cref="RoslynCompilationService"/> class.
@@ -37,22 +40,23 @@ namespace Microsoft.AspNet.Mvc.Razor.Compilation
         /// <param name="environment">The environment for the executing application.</param>
         /// <param name="loaderEngine">The loader used to load compiled assemblies.</param>
         /// <param name="libraryManager">The library manager that provides export and reference information.</param>
+        /// <param name="host">The <see cref="IMvcRazorHost"/> that was used to generate the code.</param>
         public RoslynCompilationService(IApplicationEnvironment environment,
-                                        IAssemblyLoaderEngine loaderEngine,
-                                        ILibraryManager libraryManager)
+                                        IAssemblyLoadContextAccessor loaderAccessor,
+                                        ILibraryManager libraryManager,
+                                        IMvcRazorHost host)
         {
             _environment = environment;
-            _loader = loaderEngine;
+            _loader = loaderAccessor.GetLoadContext(typeof(RoslynCompilationService).GetTypeInfo().Assembly);
             _libraryManager = libraryManager;
             _applicationReferences = new Lazy<List<MetadataReference>>(GetApplicationReferences);
+            _classPrefix = host.MainClassNamePrefix;
         }
 
         /// <inheritdoc />
         public CompilationResult Compile(IFileInfo fileInfo, string compilationContent)
         {
-            var sourceText = SourceText.From(compilationContent, Encoding.UTF8);
-            var syntaxTrees = new[] { CSharpSyntaxTree.ParseText(sourceText, path: fileInfo.PhysicalPath) };
-            var targetFramework = _environment.TargetFramework;
+            var syntaxTrees = new[] { SyntaxTreeGenerator.Generate(compilationContent, fileInfo.PhysicalPath) };
 
             var references = _applicationReferences.Value;
 
@@ -69,13 +73,13 @@ namespace Microsoft.AspNet.Mvc.Razor.Compilation
                 {
                     EmitResult result;
 
-                    if (PlatformHelper.IsMono)
+                    if (_supportsPdbGeneration.Value)
                     {
-                        result = compilation.Emit(ms, pdbStream: null);
+                        result = compilation.Emit(ms, pdbStream: pdb);
                     }
                     else
                     {
-                        result = compilation.Emit(ms, pdbStream: pdb);
+                        result = compilation.Emit(ms);
                     }
 
                     if (!result.Success)
@@ -93,20 +97,21 @@ namespace Microsoft.AspNet.Mvc.Razor.Compilation
                     Assembly assembly;
                     ms.Seek(0, SeekOrigin.Begin);
 
-                    if (PlatformHelper.IsMono)
-                    {
-                        assembly = _loader.LoadStream(ms, pdbStream: null);
-                    }
-                    else
+                    if (_supportsPdbGeneration.Value)
                     {
                         pdb.Seek(0, SeekOrigin.Begin);
                         assembly = _loader.LoadStream(ms, pdb);
                     }
+                    else
+                    {
+                        assembly = _loader.LoadStream(ms, assemblySymbols: null);
+                    }
 
                     var type = assembly.GetExportedTypes()
-                                       .First();
+                                       .First(t => t.Name.
+                                          StartsWith(_classPrefix, StringComparison.Ordinal));
 
-                    return UncachedCompilationResult.Successful(type, compilationContent);
+                    return UncachedCompilationResult.Successful(type);
                 }
             }
         }
@@ -142,7 +147,7 @@ namespace Microsoft.AspNet.Mvc.Razor.Compilation
 
             if (embeddedReference != null)
             {
-                return new MetadataImageReference(embeddedReference.Contents);
+                return MetadataReference.CreateFromImage(embeddedReference.Contents);
             }
 
             var fileMetadataReference = metadataReference as IMetadataFileReference;
@@ -159,9 +164,7 @@ namespace Microsoft.AspNet.Mvc.Razor.Compilation
                 {
                     projectReference.EmitReferenceAssembly(ms);
 
-                    ms.Seek(0, SeekOrigin.Begin);
-
-                    return new MetadataImageReference(ms);
+                    return MetadataReference.CreateFromImage(ms.ToArray());
                 }
             }
 
@@ -170,15 +173,16 @@ namespace Microsoft.AspNet.Mvc.Razor.Compilation
 
         private MetadataReference CreateMetadataFileReference(string path)
         {
-            return _metadataFileCache.GetOrAdd(path, _ =>
+            var metadata = _metadataFileCache.GetOrAdd(path, _ =>
             {
-                // TODO: What about access to the file system? We need to be able to 
-                // read files from anywhere on disk, not just under the web root
                 using (var stream = File.OpenRead(path))
                 {
-                    return new MetadataImageReference(stream);
+                    var moduleMetadata = ModuleMetadata.CreateFromStream(stream, PEStreamOptions.PrefetchMetadata);
+                    return AssemblyMetadata.Create(moduleMetadata);
                 }
             });
+
+            return metadata.GetReference();
         }
 
         private static CompilationMessage GetCompilationMessage(DiagnosticFormatter formatter, Diagnostic diagnostic)
@@ -189,6 +193,34 @@ namespace Microsoft.AspNet.Mvc.Razor.Compilation
         private static bool IsError(Diagnostic diagnostic)
         {
             return diagnostic.IsWarningAsError || diagnostic.Severity == DiagnosticSeverity.Error;
+        }
+
+        private static bool SupportsPdbGeneration()
+        {
+            try
+            {
+                if (PlatformHelper.IsMono)
+                {
+                    return false;
+                }
+
+                // Check for the pdb writer component that roslyn uses to generate pdbs
+                const string SymWriterGuid = "0AE2DEB0-F901-478b-BB9F-881EE8066788";
+
+                var type = Marshal.GetTypeFromCLSID(new Guid(SymWriterGuid));
+
+                if (type != null)
+                {
+                    // This line will throw if pdb generation is not supported.
+                    Activator.CreateInstance(type);
+                    return true;
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
         }
     }
 }

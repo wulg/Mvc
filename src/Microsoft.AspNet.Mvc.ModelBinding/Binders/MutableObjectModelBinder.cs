@@ -17,14 +17,33 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
         {
             ModelBindingHelper.ValidateBindingContext(bindingContext);
 
-            if (!CanBindType(bindingContext.ModelType) ||
-                !await bindingContext.ValueProvider.ContainsPrefixAsync(bindingContext.ModelName))
+            if (!CanBindType(bindingContext.ModelType))
+            {
+                return false;
+            }
+
+            var topLevelObject = bindingContext.ModelMetadata.ContainerType == null;
+            var isThereAnExplicitAlias = bindingContext.ModelMetadata.ModelName != null;
+
+            
+            // The first check is necessary because if we fallback to empty prefix, we do not want to depend
+            // on a value provider to provide a value for empty prefix.
+            var containsPrefix = (bindingContext.ModelName == string.Empty && topLevelObject) ||
+                                 await bindingContext.ValueProvider.ContainsPrefixAsync(bindingContext.ModelName);
+
+            // Always create the model if
+            // 1. It is a top level object and the model name is empty.
+            // 2. There is a value provider which can provide value for the model name.
+            // 3. There is an explicit alias provided by the user and it is a top level object.
+            // The reson we depend on explicit alias is that otherwise we want the FallToEmptyPrefix codepath
+            // to kick in so that empty prefix values could be bound.
+            if (!containsPrefix && !(isThereAnExplicitAlias && topLevelObject))
             {
                 return false;
             }
 
             EnsureModel(bindingContext);
-            var propertyMetadatas = GetMetadataForProperties(bindingContext);
+            var propertyMetadatas = GetMetadataForProperties(bindingContext).ToArray();
             var dto = CreateAndPopulateDto(bindingContext, propertyMetadatas);
 
             // post-processing, e.g. property setters and hooking up validation
@@ -42,7 +61,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
         private static bool CanBindType(Type modelType)
         {
             // Simple types cannot use this binder
-            var isComplexType = !ValueProviderResult.CanConvertFromString(modelType);
+            var isComplexType = !TypeHelper.HasStringConverter(modelType);
             if (!isComplexType)
             {
                 return false;
@@ -127,10 +146,10 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                     // var errorMessage =  ModelBinderConfig.ValueRequiredErrorMessageProvider(e.ValidationContext, 
                     //                                                                            modelMetadata, 
                     //                                                                            incomingValue);
-                    var errorMessage = "A value is required.";
+                    var errorMessage = Resources.ModelBinderConfig_ValueRequired;
                     if (errorMessage != null)
                     {
-                        modelState.AddModelError(validationNode.ModelStateKey, errorMessage);
+                        modelState.TryAddModelError(validationNode.ModelStateKey, errorMessage);
                     }
                 }
             };
@@ -147,8 +166,18 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
         protected virtual IEnumerable<ModelMetadata> GetMetadataForProperties(ModelBindingContext bindingContext)
         {
             var validationInfo = GetPropertyValidationInfo(bindingContext);
+            var propertyTypeMetadata = bindingContext.MetadataProvider
+                                                       .GetMetadataForType(null, bindingContext.ModelType);
+            Predicate<string> newPropertyFilter =
+                propertyName => bindingContext.PropertyFilter(propertyName) &&
+                                BindAttribute.IsPropertyAllowed(
+                                                propertyName,
+                                                propertyTypeMetadata.IncludedProperties,
+                                                propertyTypeMetadata.ExcludedProperties);
+
             return bindingContext.ModelMetadata.Properties
                                  .Where(propertyMetadata =>
+                                    newPropertyFilter(propertyMetadata.PropertyName) &&
                                     (validationInfo.RequiredProperties.Contains(propertyMetadata.PropertyName) ||
                                     !validationInfo.SkipProperties.Contains(propertyMetadata.PropertyName)) &&
                                     CanUpdateProperty(propertyMetadata));
@@ -232,7 +261,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                 // (oddly) succeeded.
                 if (!addedError)
                 {
-                    bindingContext.ModelState.AddModelError(
+                    bindingContext.ModelState.TryAddModelError(
                         modelStateKey,
                         Resources.FormatMissingRequiredMember(missingRequiredProperty));
                 }
@@ -285,7 +314,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                         var validationContext = new ModelValidationContext(bindingContext, propertyMetadata);
                         foreach (var validationResult in requiredValidator.Validate(validationContext))
                         {
-                            bindingContext.ModelState.AddModelError(modelStateKey, validationResult.Message);
+                            bindingContext.ModelState.TryAddModelError(modelStateKey, validationResult.Message);
                         }
                     }
                 }
@@ -337,7 +366,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
             var addedError = false;
             foreach (var validationResult in validator.Validate(validationContext))
             {
-                bindingContext.ModelState.AddModelError(modelStateKey, validationResult.Message);
+                bindingContext.ModelState.TryAddModelError(modelStateKey, validationResult.Message);
                 addedError = true;
             }
 
@@ -347,6 +376,21 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
             }
 
             return addedError;
+        }
+
+        private static bool IsPropertyAllowed(string propertyName,
+                                              IReadOnlyList<string> includeProperties,
+                                              IReadOnlyList<string> excludeProperties)
+        {
+            // We allow a property to be bound if its both in the include list AND not in the exclude list.
+            // An empty exclude list implies no properties are disallowed.
+            var includeProperty = (includeProperties != null) &&
+                                  includeProperties.Contains(propertyName, StringComparer.OrdinalIgnoreCase);
+
+            var excludeProperty = (excludeProperties != null) &&
+                                  excludeProperties.Contains(propertyName, StringComparer.OrdinalIgnoreCase);
+
+            return includeProperty && !excludeProperty;
         }
 
         internal sealed class PropertyValidationInfo

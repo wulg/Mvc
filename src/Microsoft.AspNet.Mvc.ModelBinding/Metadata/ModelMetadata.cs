@@ -43,10 +43,29 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
             _modelAccessor = modelAccessor;
             _modelType = modelType;
             _propertyName = propertyName;
-
             _convertEmptyStringToNull = true;
             _isRequired = !modelType.AllowsNullValue();
         }
+
+        /// <summary>
+        /// Represents the name of a model if specified explicitly using <see cref="IModelNameProvider"/>.
+        /// </summary>
+        public string ModelName { get; set; }
+
+        /// <summary>
+        /// Properties which are marked as Included for this model.
+        /// </summary>
+        public IReadOnlyList<string> IncludedProperties { get; set; }
+
+        /// <summary>
+        /// Properties which are marked as Excluded for this model.
+        /// </summary>
+        public IReadOnlyList<string> ExcludedProperties { get; set; }
+
+        /// <summary>
+        /// Gets or sets a binder metadata for this model.
+        /// </summary>
+        public IBinderMetadata BinderMetadata { get; set; }
 
         public Type ContainerType
         {
@@ -59,6 +78,11 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
             set { _convertEmptyStringToNull = value; }
         }
 
+        /// <summary>
+        /// Gets or sets the name of the <see cref="Model"/>'s datatype.  Overrides <see cref="ModelType"/> in some
+        /// display scenarios.
+        /// </summary>
+        /// <value><c>null</c> unless set manually or through additional metadata e.g. attributes.</value>
         public virtual string DataTypeName { get; set; }
 
         public virtual string Description { get; set; }
@@ -102,7 +126,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
 
         public virtual bool IsComplexType
         {
-            get { return !ValueProviderResult.CanConvertFromString(ModelType); }
+            get { return !TypeHelper.HasStringConverter(ModelType); }
         }
 
         public bool IsNullableValueType

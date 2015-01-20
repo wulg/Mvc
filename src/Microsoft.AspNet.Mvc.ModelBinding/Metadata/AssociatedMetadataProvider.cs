@@ -46,6 +46,23 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
             return CreateMetadataFromPrototype(prototype, modelAccessor);
         }
 
+        public ModelMetadata GetMetadataForParameter(
+            Func<object> modelAccessor, 
+            [NotNull] MethodInfo methodInfo, 
+            [NotNull] string parameterName,
+            IBinderMetadata binderMetadata)
+        {
+            var parameter = methodInfo.GetParameters().FirstOrDefault(
+                param => StringComparer.Ordinal.Equals(param.Name, parameterName));
+            if (parameter == null)
+            {
+                var message = Resources.FormatCommon_ParameterNotFound(parameterName);
+                throw new ArgumentException(message, nameof(parameterName));
+            }
+
+            return GetMetadataForParameterCore(modelAccessor, parameterName, parameter, binderMetadata);
+        }
+
         // Override for creating the prototype metadata (without the accessor)
         protected abstract TModelMetadata CreateMetadataPrototype(IEnumerable<Attribute> attributes,
                                                                   Type containerType,
@@ -55,6 +72,19 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
         // Override for applying the prototype + modelAccess to yield the final metadata
         protected abstract TModelMetadata CreateMetadataFromPrototype(TModelMetadata prototype,
                                                                       Func<object> modelAccessor);
+        private ModelMetadata GetMetadataForParameterCore(Func<object> modelAccessor,
+                                                          string parameterName,
+                                                          ParameterInfo parameter,
+                                                          IBinderMetadata binderMetadata)
+        {
+            var parameterInfo = 
+                CreateParameterInfo(parameter.ParameterType,
+                                    parameter.GetCustomAttributes(),
+                                    parameterName,
+                                    binderMetadata);
+
+            return CreateMetadataFromPrototype(parameterInfo.Prototype, modelAccessor);
+        }
 
         private IEnumerable<ModelMetadata> GetMetadataForPropertiesCore(object container, Type containerType)
         {
@@ -78,6 +108,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
             {
                 metadata.IsReadOnly = true;
             }
+
             return metadata;
         }
 
@@ -119,8 +150,8 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                     properties.Add(propertyHelper.Name, CreatePropertyInformation(type, propertyHelper));
                 }
             }
-            info.Properties = properties;
 
+            info.Properties = properties;
             return info;
         }
 
@@ -136,6 +167,39 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                                                     property.Name),
                 IsReadOnly = !property.CanWrite || property.SetMethod.IsPrivate
             };
+        }
+
+        private ParameterInformation CreateParameterInfo(
+            Type parameterType, 
+            IEnumerable<Attribute> attributes, 
+            string parameterName,
+            IBinderMetadata binderMetadata)
+        {
+            var metadataProtoType = CreateMetadataPrototype(attributes: attributes,
+                                                    containerType: null,
+                                                    modelType: parameterType,
+                                                    propertyName: parameterName);
+      
+            if (binderMetadata != null)
+            {
+                metadataProtoType.BinderMetadata = binderMetadata;
+            }
+
+            var nameProvider = binderMetadata as IModelNameProvider;
+            if (nameProvider != null && nameProvider.Name != null)
+            {
+                metadataProtoType.ModelName = nameProvider.Name;
+            }
+
+            return new ParameterInformation
+            {
+                Prototype =  metadataProtoType
+            };
+        }
+
+        private sealed class ParameterInformation
+        {
+            public TModelMetadata Prototype { get; set; }
         }
 
         private sealed class TypeInformation

@@ -17,6 +17,11 @@ namespace MvcSample.Web
             return View("MyView", CreateUser());
         }
 
+        public IActionResult NullUser()
+        {
+            return View();
+        }
+
         public ActionResult ValidationSummary()
         {
             ModelState.AddModelError("something", "Something happened, show up in validation summary.");
@@ -32,6 +37,16 @@ namespace MvcSample.Web
         public ActionResult NotFound()
         {
             return HttpNotFound();
+        }
+
+        public ActionResult SendFileFromDisk()
+        {
+            return File("sample.txt", "text/plain");
+        }
+
+        public ActionResult SendFileFromDiskWithName()
+        {
+            return File("sample.txt", "text/plain", "sample-file.txt");
         }
 
         public bool IsDefaultNameSpace()
@@ -95,6 +110,11 @@ namespace MvcSample.Web
         public void Raw()
         {
             Context.Response.WriteAsync("Hello World raw");
+        }
+
+        public ActionResult Language()
+        {
+            return View();
         }
 
         [Produces("application/json", "application/xml", "application/custom", "text/json", Type = typeof(User))]

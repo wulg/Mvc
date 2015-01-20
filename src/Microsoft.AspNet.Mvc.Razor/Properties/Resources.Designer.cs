@@ -59,6 +59,22 @@ namespace Microsoft.AspNet.Mvc.Razor
         }
 
         /// <summary>
+        /// The {0} returned by '{1}' must be an instance of '{2}'.
+        /// </summary>
+        internal static string Instrumentation_WriterMustBeBufferedTextWriter
+        {
+            get { return GetString("Instrumentation_WriterMustBeBufferedTextWriter"); }
+        }
+
+        /// <summary>
+        /// The {0} returned by '{1}' must be an instance of '{2}'.
+        /// </summary>
+        internal static string FormatInstrumentation_WriterMustBeBufferedTextWriter(object p0, object p1, object p2)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("Instrumentation_WriterMustBeBufferedTextWriter"), p0, p1, p2);
+        }
+
+        /// <summary>
         /// The layout view '{0}' could not be located.
         /// </summary>
         internal static string LayoutCannotBeLocated
@@ -139,19 +155,67 @@ namespace Microsoft.AspNet.Mvc.Razor
         }
 
         /// <summary>
-        /// {0} can only be called from a layout page.
+        /// There is no active writing scope to end.
         /// </summary>
-        internal static string RenderBodyCannotBeCalled
+        internal static string RazorPage_ThereIsNoActiveWritingScopeToEnd
         {
-            get { return GetString("RenderBodyCannotBeCalled"); }
+            get { return GetString("RazorPage_ThereIsNoActiveWritingScopeToEnd"); }
+        }
+
+        /// <summary>
+        /// There is no active writing scope to end.
+        /// </summary>
+        internal static string FormatRazorPage_ThereIsNoActiveWritingScopeToEnd()
+        {
+            return GetString("RazorPage_ThereIsNoActiveWritingScopeToEnd");
+        }
+
+        /// <summary>
+        /// You cannot flush while inside a writing scope.
+        /// </summary>
+        internal static string RazorPage_YouCannotFlushWhileInAWritingScope
+        {
+            get { return GetString("RazorPage_YouCannotFlushWhileInAWritingScope"); }
+        }
+
+        /// <summary>
+        /// You cannot flush while inside a writing scope.
+        /// </summary>
+        internal static string FormatRazorPage_YouCannotFlushWhileInAWritingScope()
+        {
+            return GetString("RazorPage_YouCannotFlushWhileInAWritingScope");
+        }
+
+        /// <summary>
+        /// The {0} was unable to provide metadata for expression '{1}'.
+        /// </summary>
+        internal static string RazorPage_NullModelMetadata
+        {
+            get { return GetString("RazorPage_NullModelMetadata"); }
+        }
+
+        /// <summary>
+        /// The {0} was unable to provide metadata for expression '{1}'.
+        /// </summary>
+        internal static string FormatRazorPage_NullModelMetadata(object p0, object p1)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("RazorPage_NullModelMetadata"), p0, p1);
         }
 
         /// <summary>
         /// {0} can only be called from a layout page.
         /// </summary>
-        internal static string FormatRenderBodyCannotBeCalled(object p0)
+        internal static string RazorPage_MethodCannotBeCalled
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("RenderBodyCannotBeCalled"), p0);
+            get { return GetString("RazorPage_MethodCannotBeCalled"); }
+        }
+
+        /// <summary>
+        /// {0} can only be called from a layout page.
+        /// </summary>
+        internal static string FormatRazorPage_MethodCannotBeCalled(object p0)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("RazorPage_MethodCannotBeCalled"), p0);
         }
 
         /// <summary>
@@ -187,7 +251,7 @@ namespace Microsoft.AspNet.Mvc.Razor
         }
 
         /// <summary>
-        /// {0} has already been called for the section named '{1}'.
+        /// The section named '{0}' has already been rendered.
         /// </summary>
         internal static string SectionAlreadyRendered
         {
@@ -195,11 +259,11 @@ namespace Microsoft.AspNet.Mvc.Razor
         }
 
         /// <summary>
-        /// {0} has already been called for the section named '{1}'.
+        /// The section named '{0}' has already been rendered.
         /// </summary>
-        internal static string FormatSectionAlreadyRendered(object p0, object p1)
+        internal static string FormatSectionAlreadyRendered(object p0)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("SectionAlreadyRendered"), p0, p1);
+            return string.Format(CultureInfo.CurrentCulture, GetString("SectionAlreadyRendered"), p0);
         }
 
         /// <summary>
@@ -267,6 +331,22 @@ namespace Microsoft.AspNet.Mvc.Razor
         }
 
         /// <summary>
+        /// '{0}' must be a {1} that is generated as result of the call to '{2}'.
+        /// </summary>
+        internal static string ViewLocationCache_KeyMustBeString
+        {
+            get { return GetString("ViewLocationCache_KeyMustBeString"); }
+        }
+
+        /// <summary>
+        /// '{0}' must be a {1} that is generated as result of the call to '{2}'.
+        /// </summary>
+        internal static string FormatViewLocationCache_KeyMustBeString(object p0, object p1, object p2)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("ViewLocationCache_KeyMustBeString"), p0, p1, p2);
+        }
+
+        /// <summary>
         /// The '{0}' method must be called before '{1}' can be invoked.
         /// </summary>
         internal static string ViewMustBeContextualized
@@ -280,22 +360,6 @@ namespace Microsoft.AspNet.Mvc.Razor
         internal static string FormatViewMustBeContextualized(object p0, object p1)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("ViewMustBeContextualized"), p0, p1);
-        }
-
-        /// <summary>
-        /// The method '{0}' cannot be invoked by this view.
-        /// </summary>
-        internal static string View_MethodCannotBeCalled
-        {
-            get { return GetString("View_MethodCannotBeCalled"); }
-        }
-
-        /// <summary>
-        /// The method '{0}' cannot be invoked by this view.
-        /// </summary>
-        internal static string FormatView_MethodCannotBeCalled(object p0)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("View_MethodCannotBeCalled"), p0);
         }
 
         private static string GetString(string name, params string[] formatterNames)

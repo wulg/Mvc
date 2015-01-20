@@ -43,6 +43,22 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
         }
 
         /// <summary>
+        /// The parameter '{0}' could not be found.
+        /// </summary>
+        internal static string Common_ParameterNotFound
+        {
+            get { return GetString("Common_ParameterNotFound"); }
+        }
+
+        /// <summary>
+        /// The parameter '{0}' could not be found.
+        /// </summary>
+        internal static string FormatCommon_ParameterNotFound(object p0)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("Common_ParameterNotFound"), p0);
+        }
+
+        /// <summary>
         /// The type '{0}' must have a public constructor which accepts a single parameter of type '{1}'.
         /// </summary>
         internal static string DataAnnotationsModelValidatorProvider_ConstructorRequirements
@@ -392,6 +408,22 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
         internal static string FormatDataAnnotationsModelMetadataProvider_UnreadableProperty(object p0, object p1)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("DataAnnotationsModelMetadataProvider_UnreadableProperty"), p0, p1);
+        }
+
+        /// <summary>
+        /// The maximum number of allowed model errors has been reached.
+        /// </summary>
+        internal static string ModelStateDictionary_MaxModelStateErrors
+        {
+            get { return GetString("ModelStateDictionary_MaxModelStateErrors"); }
+        }
+
+        /// <summary>
+        /// The maximum number of allowed model errors has been reached.
+        /// </summary>
+        internal static string FormatModelStateDictionary_MaxModelStateErrors()
+        {
+            return GetString("ModelStateDictionary_MaxModelStateErrors");
         }
 
         private static string GetString(string name, params string[] formatterNames)

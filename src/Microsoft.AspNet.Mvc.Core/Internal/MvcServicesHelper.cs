@@ -20,10 +20,12 @@ namespace Microsoft.AspNet.Mvc.Internal
         /// <param name="serviceType">The type of service which needs to be searched for.</param>
         public static void ThrowIfMvcNotRegistered(IServiceProvider services)
         {
-            if (services.GetServiceOrNull(typeof(MvcMarkerService)) == null)
+            if (services.GetService(typeof(MvcMarkerService)) == null)
             {
                 throw new InvalidOperationException(Resources.FormatUnableToFindServices(
-                    "IServiceCollection.AddMvc()", "IBuilder.UseServices(...)", "IBuilder.UseMvc(...)"));
+                    "IServiceCollection.AddMvc()",
+                    "IApplicationBuilder.UseServices(...)",
+                    "IApplicationBuilder.UseMvc(...)"));
             }
         }
     }

@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Microsoft.AspNet.Mvc.ModelBinding
@@ -65,8 +67,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
 
             // Only perform validation at the root of the object graph. ValidationNode will recursively walk the graph.
             // Ignore ComplexModelDto since it essentially wraps the primary object.
-            if (newBindingContext.ModelMetadata.ContainerType == null &&
-                newBindingContext.ModelMetadata.ModelType != typeof(ComplexModelDto))
+            if (IsBindingAtRootOfObjectGraph(newBindingContext))
             {
                 // run validation and return the model
                 // If we fell back to an empty prefix above and are dealing with simple types,
@@ -92,7 +93,7 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
             return true;
         }
 
-        private async Task<bool> TryBind([NotNull] ModelBindingContext bindingContext)
+        private async Task<bool> TryBind(ModelBindingContext bindingContext)
         {
             // TODO: RuntimeHelpers.EnsureSufficientExecutionStack does not exist in the CoreCLR.
             // Protects against stack overflow for deeply nested model binding
@@ -110,6 +111,16 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
             return false;
         }
 
+        private static bool IsBindingAtRootOfObjectGraph(ModelBindingContext bindingContext)
+        {
+            // We're at the root of the object graph if the model does does not have a container.
+            // This statement is true for complex types at the root twice over - once with the actual model
+            // and once when when it is represented by a ComplexModelDto. Ignore the latter case.
+
+            return bindingContext.ModelMetadata.ContainerType == null &&
+                   bindingContext.ModelMetadata.ModelType != typeof(ComplexModelDto);
+        }
+
         private static ModelBindingContext CreateNewBindingContext(ModelBindingContext oldBindingContext,
                                                                    string modelName,
                                                                    bool reuseValidationNode)
@@ -123,13 +134,25 @@ namespace Microsoft.AspNet.Mvc.ModelBinding
                 ValidatorProvider = oldBindingContext.ValidatorProvider,
                 MetadataProvider = oldBindingContext.MetadataProvider,
                 ModelBinder = oldBindingContext.ModelBinder,
-                HttpContext = oldBindingContext.HttpContext
+                HttpContext = oldBindingContext.HttpContext,
+                PropertyFilter = oldBindingContext.PropertyFilter,
             };
 
             // validation is expensive to create, so copy it over if we can
             if (reuseValidationNode)
             {
                 newBindingContext.ValidationNode = oldBindingContext.ValidationNode;
+            }
+
+            // look at the value providers and see if they need to be restricted. 
+            var metadata = oldBindingContext.ModelMetadata.BinderMetadata as IValueProviderMetadata;
+            if (metadata != null)
+            {
+                var valueProvider = oldBindingContext.ValueProvider as IMetadataAwareValueProvider;
+                if (valueProvider != null)
+                {
+                    newBindingContext.ValueProvider = valueProvider.Filter(metadata);
+                }
             }
 
             return newBindingContext;

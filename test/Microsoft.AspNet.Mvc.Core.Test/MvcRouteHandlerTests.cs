@@ -10,6 +10,7 @@ using Microsoft.AspNet.Mvc.Logging;
 using Microsoft.AspNet.Routing;
 using Microsoft.Framework.DependencyInjection;
 using Microsoft.Framework.Logging;
+using Microsoft.Framework.OptionsModel;
 using Moq;
 using Xunit;
 
@@ -18,7 +19,7 @@ namespace Microsoft.AspNet.Mvc
     public class MvcRouteHandlerTests
     {
         [Fact]
-        public async void RouteAsync_Success_LogsCorrectValues()
+        public async Task RouteAsync_Success_LogsCorrectValues()
         {
             // Arrange
             var sink = new TestSink();
@@ -37,15 +38,9 @@ namespace Microsoft.AspNet.Mvc
             Assert.Equal(typeof(MvcRouteHandler).FullName, scope.LoggerName);
             Assert.Equal("MvcRouteHandler.RouteAsync", scope.Scope);
 
-            // There is a record for IsEnabled and one for WriteCore.
-            Assert.Equal(2, sink.Writes.Count);
+            Assert.Equal(1, sink.Writes.Count);
 
-            var enabled = sink.Writes[0];
-            Assert.Equal(typeof(MvcRouteHandler).FullName, enabled.LoggerName);
-            Assert.Equal("MvcRouteHandler.RouteAsync", enabled.Scope);
-            Assert.Null(enabled.State);
-
-            var write = sink.Writes[1];
+            var write = sink.Writes[0];
             Assert.Equal(typeof(MvcRouteHandler).FullName, write.LoggerName);
             Assert.Equal("MvcRouteHandler.RouteAsync", write.Scope);
             var values = Assert.IsType<MvcRouteHandlerRouteAsyncValues>(write.State);
@@ -56,7 +51,7 @@ namespace Microsoft.AspNet.Mvc
         }
 
         [Fact]
-        public async void RouteAsync_FailOnNoAction_LogsCorrectValues()
+        public async Task RouteAsync_FailOnNoAction_LogsCorrectValues()
         {
             // Arrange
             var sink = new TestSink();
@@ -81,15 +76,9 @@ namespace Microsoft.AspNet.Mvc
             Assert.Equal(typeof(MvcRouteHandler).FullName, scope.LoggerName);
             Assert.Equal("MvcRouteHandler.RouteAsync", scope.Scope);
 
-            // There is a record for IsEnabled and one for WriteCore.
-            Assert.Equal(2, sink.Writes.Count);
+            Assert.Equal(1, sink.Writes.Count);
 
-            var enabled = sink.Writes[0];
-            Assert.Equal(typeof(MvcRouteHandler).FullName, enabled.LoggerName);
-            Assert.Equal("MvcRouteHandler.RouteAsync", enabled.Scope);
-            Assert.Null(enabled.State);
-
-            var write = sink.Writes[1];
+            var write = sink.Writes[0];
             Assert.Equal(typeof(MvcRouteHandler).FullName, write.LoggerName);
             Assert.Equal("MvcRouteHandler.RouteAsync", write.Scope);
             var values = Assert.IsType<MvcRouteHandlerRouteAsyncValues>(write.State);
@@ -100,7 +89,7 @@ namespace Microsoft.AspNet.Mvc
         }
 
         [Fact]
-        public async void RouteAsync_FailOnNoInvoker_LogsCorrectValues()
+        public async Task RouteAsync_FailOnNoInvoker_LogsCorrectValues()
         {
             // Arrange
             var sink = new TestSink();
@@ -126,15 +115,9 @@ namespace Microsoft.AspNet.Mvc
             Assert.Equal(typeof(MvcRouteHandler).FullName, scope.LoggerName);
             Assert.Equal("MvcRouteHandler.RouteAsync", scope.Scope);
 
-            // There is a record for IsEnabled and one for WriteCore.
-            Assert.Equal(2, sink.Writes.Count);
+            Assert.Equal(1, sink.Writes.Count);
 
-            var enabled = sink.Writes[0];
-            Assert.Equal(typeof(MvcRouteHandler).FullName, enabled.LoggerName);
-            Assert.Equal("MvcRouteHandler.RouteAsync", enabled.Scope);
-            Assert.Null(enabled.State);
-
-            var write = sink.Writes[1];
+            var write = sink.Writes[0];
             Assert.Equal(typeof(MvcRouteHandler).FullName, write.LoggerName);
             Assert.Equal("MvcRouteHandler.RouteAsync", write.Scope);
             var values = Assert.IsType<MvcRouteHandlerRouteAsyncValues>(write.State);
@@ -144,10 +127,47 @@ namespace Microsoft.AspNet.Mvc
             Assert.Equal(false, values.Handled);
         }
 
+        [Fact]
+        public async Task RouteAsync_SetsMaxErrorCountOnModelStateDictionary()
+        {
+            // Arrange
+            var expected = 199;
+            var optionsAccessor = new Mock<IOptions<MvcOptions>>();
+            var options = new MvcOptions
+            {
+                MaxModelValidationErrors = expected
+            };
+            optionsAccessor.SetupGet(o => o.Options)
+                           .Returns(options);
+
+            var invoked = false;
+            var mockInvokerFactory = new Mock<IActionInvokerFactory>();
+            mockInvokerFactory.Setup(f => f.CreateInvoker(It.IsAny<ActionContext>()))
+                              .Callback<ActionContext>(c =>
+                              {
+                                  Assert.Equal(expected, c.ModelState.MaxAllowedErrors);
+                                  invoked = true;
+                              })
+                              .Returns(Mock.Of<IActionInvoker>());
+
+            var context = CreateRouteContext(
+                invokerFactory: mockInvokerFactory.Object,
+                optionsAccessor: optionsAccessor.Object);
+
+            var handler = new MvcRouteHandler();
+
+            // Act
+            await handler.RouteAsync(context);
+
+            // Assert
+            Assert.True(invoked);
+        }
+
         private RouteContext CreateRouteContext(
             IActionSelector actionSelector = null,
             IActionInvokerFactory invokerFactory = null,
-            ILoggerFactory loggerFactory = null)
+            ILoggerFactory loggerFactory = null,
+            IOptions<MvcOptions> optionsAccessor = null)
         {
             var mockContextAccessor = new Mock<IContextAccessor<ActionContext>>();
             mockContextAccessor.Setup(c => c.SetContextSource(
@@ -171,7 +191,7 @@ namespace Microsoft.AspNet.Mvc
             {
                 var mockInvoker = new Mock<IActionInvoker>();
                 mockInvoker.Setup(i => i.InvokeAsync())
-                    .Returns(Task.FromResult<object>(null));
+                    .Returns(Task.FromResult(true));
 
                 var mockInvokerFactory = new Mock<IActionInvokerFactory>();
                 mockInvokerFactory.Setup(f => f.CreateInvoker(It.IsAny<ActionContext>()))
@@ -185,6 +205,15 @@ namespace Microsoft.AspNet.Mvc
                 loggerFactory = NullLoggerFactory.Instance;
             }
 
+            if (optionsAccessor == null)
+            {
+                var mockOptionsAccessor = new Mock<IOptions<MvcOptions>>();
+                mockOptionsAccessor.SetupGet(o => o.Options)
+                                   .Returns(new MvcOptions());
+
+                optionsAccessor = mockOptionsAccessor.Object;
+            }
+
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(h => h.RequestServices.GetService(typeof(IContextAccessor<ActionContext>)))
                 .Returns(mockContextAccessor.Object);
@@ -194,8 +223,10 @@ namespace Microsoft.AspNet.Mvc
                 .Returns(invokerFactory);
             httpContext.Setup(h => h.RequestServices.GetService(typeof(ILoggerFactory)))
                 .Returns(loggerFactory);
-            httpContext.Setup(h => h.RequestServices.GetService(typeof(IEnumerable<MvcMarkerService>)))
-                 .Returns(new List<MvcMarkerService> { new MvcMarkerService() });
+            httpContext.Setup(h => h.RequestServices.GetService(typeof(MvcMarkerService)))
+                 .Returns(new MvcMarkerService());
+            httpContext.Setup(h => h.RequestServices.GetService(typeof(IOptions<MvcOptions>)))
+                 .Returns(optionsAccessor);
 
             return new RouteContext(httpContext.Object);
         }

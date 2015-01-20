@@ -17,7 +17,7 @@ namespace Microsoft.AspNet.Mvc
             var setup = new MvcOptionsSetup();
 
             // Act
-            setup.Setup(mvcOptions);
+            setup.Configure(mvcOptions);
 
             // Assert
             Assert.Equal(1, mvcOptions.ViewEngines.Count);
@@ -32,16 +32,18 @@ namespace Microsoft.AspNet.Mvc
             var setup = new MvcOptionsSetup();
 
             // Act
-            setup.Setup(mvcOptions);
+            setup.Configure(mvcOptions);
 
             // Assert
-            Assert.Equal(6, mvcOptions.ModelBinders.Count);
-            Assert.Equal(typeof(TypeConverterModelBinder), mvcOptions.ModelBinders[0].OptionType);
-            Assert.Equal(typeof(TypeMatchModelBinder), mvcOptions.ModelBinders[1].OptionType);
-            Assert.Equal(typeof(ByteArrayModelBinder), mvcOptions.ModelBinders[2].OptionType);
-            Assert.Equal(typeof(GenericModelBinder), mvcOptions.ModelBinders[3].OptionType);
-            Assert.Equal(typeof(MutableObjectModelBinder), mvcOptions.ModelBinders[4].OptionType);
-            Assert.Equal(typeof(ComplexModelDtoModelBinder), mvcOptions.ModelBinders[5].OptionType);
+            Assert.Equal(8, mvcOptions.ModelBinders.Count);
+            Assert.Equal(typeof(BodyModelBinder), mvcOptions.ModelBinders[0].OptionType);
+            Assert.Equal(typeof(TypeConverterModelBinder), mvcOptions.ModelBinders[1].OptionType);
+            Assert.Equal(typeof(TypeMatchModelBinder), mvcOptions.ModelBinders[2].OptionType);
+            Assert.Equal(typeof(CancellationTokenModelBinder), mvcOptions.ModelBinders[3].OptionType);
+            Assert.Equal(typeof(ByteArrayModelBinder), mvcOptions.ModelBinders[4].OptionType);
+            Assert.Equal(typeof(GenericModelBinder), mvcOptions.ModelBinders[5].OptionType);
+            Assert.Equal(typeof(MutableObjectModelBinder), mvcOptions.ModelBinders[6].OptionType);
+            Assert.Equal(typeof(ComplexModelDtoModelBinder), mvcOptions.ModelBinders[7].OptionType);
         }
 
         [Fact]
@@ -52,7 +54,7 @@ namespace Microsoft.AspNet.Mvc
             var setup = new MvcOptionsSetup();
 
             // Act
-            setup.Setup(mvcOptions);
+            setup.Configure(mvcOptions);
 
             // Assert
             var valueProviders = mvcOptions.ValueProviderFactories;
@@ -70,15 +72,14 @@ namespace Microsoft.AspNet.Mvc
             var setup = new MvcOptionsSetup();
 
             // Act
-            setup.Setup(mvcOptions);
+            setup.Configure(mvcOptions);
 
             // Assert
-            Assert.Equal(5, mvcOptions.OutputFormatters.Count);
-            Assert.IsType<NoContentFormatter>(mvcOptions.OutputFormatters[0].Instance);
+            Assert.Equal(4, mvcOptions.OutputFormatters.Count);
+            Assert.IsType<HttpNoContentOutputFormatter>(mvcOptions.OutputFormatters[0].Instance);
             Assert.IsType<TextPlainFormatter>(mvcOptions.OutputFormatters[1].Instance);
             Assert.IsType<JsonOutputFormatter>(mvcOptions.OutputFormatters[2].Instance);
             Assert.IsType<XmlDataContractSerializerOutputFormatter>(mvcOptions.OutputFormatters[3].Instance);
-            Assert.IsType<XmlSerializerOutputFormatter>(mvcOptions.OutputFormatters[4].Instance);
         }
 
         [Fact]
@@ -89,13 +90,12 @@ namespace Microsoft.AspNet.Mvc
             var setup = new MvcOptionsSetup();
 
             // Act
-            setup.Setup(mvcOptions);
+            setup.Configure(mvcOptions);
 
             // Assert
-            Assert.Equal(3, mvcOptions.InputFormatters.Count);
+            Assert.Equal(2, mvcOptions.InputFormatters.Count);
             Assert.IsType<JsonInputFormatter>(mvcOptions.InputFormatters[0].Instance);
-            Assert.IsType<XmlSerializerInputFormatter>(mvcOptions.InputFormatters[1].Instance);
-            Assert.IsType<XmlDataContractSerializerInputFormatter>(mvcOptions.InputFormatters[2].Instance);
+            Assert.IsType<XmlDataContractSerializerInputFormatter>(mvcOptions.InputFormatters[1].Instance);
         }
 
         [Fact]
@@ -106,7 +106,7 @@ namespace Microsoft.AspNet.Mvc
             var setup = new MvcOptionsSetup();
 
             // Act
-            setup.Setup(mvcOptions);
+            setup.Configure(mvcOptions);
 
             // Assert
             Assert.Equal(2, mvcOptions.ModelValidatorProviders.Count);

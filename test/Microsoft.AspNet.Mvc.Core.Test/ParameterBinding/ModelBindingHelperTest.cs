@@ -1,13 +1,14 @@
-﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved.
+// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-#if NET45
+#if ASPNET50
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 using Microsoft.AspNet.Http;
 using Microsoft.AspNet.Mvc.ModelBinding;
+using Microsoft.AspNet.Testing;
 using Moq;
 using Xunit;
 
@@ -50,6 +51,8 @@ namespace Microsoft.AspNet.Mvc.Core.Test
         public async Task TryUpdateModel_ReturnsFalse_IfModelValidationFails()
         {
             // Arrange
+            var expectedMessage = TestPlatformHelper.IsMono ? "The field MyProperty is invalid." :
+                                                               "The MyProperty field is required.";
             var binders = new IModelBinder[]
             {
                 new TypeConverterModelBinder(),
@@ -64,7 +67,7 @@ namespace Microsoft.AspNet.Mvc.Core.Test
             {
                 { "", null }
             };
-            var valueProvider = new DictionaryBasedValueProvider(values);
+            var valueProvider = new DictionaryBasedValueProvider<TestValueBinderMetadata>(values);
 
             // Act
             var result = await ModelBindingHelper.TryUpdateModelAsync(
@@ -79,8 +82,8 @@ namespace Microsoft.AspNet.Mvc.Core.Test
 
             // Assert
             Assert.False(result);
-            Assert.Equal("The MyProperty field is required.",
-                         modelStateDictionary["MyProperty"].Errors[0].ErrorMessage);
+            var error = Assert.Single(modelStateDictionary["MyProperty"].Errors);
+            Assert.Equal(expectedMessage, error.ErrorMessage);
         }
 
         [Fact]
@@ -102,7 +105,7 @@ namespace Microsoft.AspNet.Mvc.Core.Test
                 { "", null },
                 { "MyProperty", "MyPropertyValue" }
             };
-            var valueProvider = new DictionaryBasedValueProvider(values);
+            var valueProvider = new DictionaryBasedValueProvider<TestValueBinderMetadata>(values);
 
             // Act
             var result = await ModelBindingHelper.TryUpdateModelAsync(
@@ -132,6 +135,10 @@ namespace Microsoft.AspNet.Mvc.Core.Test
         {
             [Required]
             public string MyProperty { get; set; }
+        }
+
+        private class TestValueBinderMetadata : IValueProviderMetadata
+        {
         }
     }
 }

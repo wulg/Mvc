@@ -37,7 +37,7 @@ namespace Microsoft.AspNet.Mvc
             {
                 DeclaredType = DeclaredType,
                 ActionContext = context,
-                Object = Value, 
+                Object = Value,
             };
 
             var selectedFormatter = SelectFormatter(formatterContext, formatters);
@@ -86,6 +86,24 @@ namespace Microsoft.AspNet.Mvc
                                                                                 formatterContext,
                                                                                 formatters,
                                                                                 contentTypes);
+
+                    // This would be the case when no formatter could write the type base on the 
+                    // accept headers and the request content type. Fallback on type based match. 
+                    if (selectedFormatter == null)
+                    {
+                        foreach (var formatter in formatters)
+                        {
+                            var supportedContentTypes = formatter.GetSupportedContentTypes(
+                                                                         formatterContext.DeclaredType,
+                                                                         formatterContext.Object?.GetType(),
+                                                                         contentType: null);
+
+                            if (formatter.CanWriteResult(formatterContext, supportedContentTypes?.FirstOrDefault()))
+                            {
+                                return formatter;
+                            }
+                        }
+                    }
                 }
             }
             else if (ContentTypes.Count == 1)
@@ -161,7 +179,7 @@ namespace Microsoft.AspNet.Mvc
                                                             IEnumerable<MediaTypeHeaderValue> acceptableContentTypes)
         {
             var selectedFormatter = formatters.FirstOrDefault(
-                                            formatter => 
+                                            formatter =>
                                                     acceptableContentTypes
                                                     .Any(contentType =>
                                                             formatter.CanWriteResult(formatterContext, contentType)));
@@ -191,7 +209,7 @@ namespace Microsoft.AspNet.Mvc
             {
                 formatters = context.HttpContext
                                     .RequestServices
-                                    .GetService<IOutputFormattersProvider>()
+                                    .GetRequiredService<IOutputFormattersProvider>()
                                     .OutputFormatters;
             }
             else

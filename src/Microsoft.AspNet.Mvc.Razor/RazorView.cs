@@ -2,7 +2,9 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.IO;
 using System.Threading.Tasks;
+using Microsoft.AspNet.PageExecutionInstrumentation;
 
 namespace Microsoft.AspNet.Mvc.Razor
 {
@@ -15,6 +17,7 @@ namespace Microsoft.AspNet.Mvc.Razor
         private readonly IRazorPageFactory _pageFactory;
         private readonly IRazorPageActivator _pageActivator;
         private readonly IViewStartProvider _viewStartProvider;
+        private IPageExecutionListenerFeature _pageExecutionFeature;
         private IRazorPage _razorPage;
         private bool _isPartial;
 
@@ -34,8 +37,14 @@ namespace Microsoft.AspNet.Mvc.Razor
             _viewStartProvider = viewStartProvider;
         }
 
+        private bool EnableInstrumentation
+        {
+            get { return _pageExecutionFeature != null; }
+        }
+
         /// <inheritdoc />
-        public virtual void Contextualize(IRazorPage razorPage, bool isPartial)
+        public virtual void Contextualize([NotNull] IRazorPage razorPage,
+                                          bool isPartial)
         {
             _razorPage = razorPage;
             _isPartial = isPartial;
@@ -50,49 +59,90 @@ namespace Microsoft.AspNet.Mvc.Razor
                 throw new InvalidOperationException(message);
             }
 
-            if (!_isPartial)
+            _pageExecutionFeature = context.HttpContext.GetFeature<IPageExecutionListenerFeature>();
+
+            if (_isPartial)
+            {
+                await RenderPartialAsync(context);
+            }
+            else
             {
                 var bodyWriter = await RenderPageAsync(_razorPage, context, executeViewStart: true);
                 await RenderLayoutAsync(context, bodyWriter);
             }
+        }
+
+        private async Task RenderPartialAsync(ViewContext context)
+        {
+            if (EnableInstrumentation)
+            {
+                // When instrmenting, we need to Decorate the output in an instrumented writer which
+                // RenderPageAsync does.
+                var bodyWriter = await RenderPageAsync(_razorPage, context, executeViewStart: false);
+                await bodyWriter.CopyToAsync(context.Writer);
+            }
             else
             {
+                // For the non-instrumented case, we don't need to buffer contents. For Html.Partial, the writer is 
+                // an in memory writer and for Partial views, we directly write to the Response.
                 await RenderPageCoreAsync(_razorPage, context);
             }
         }
 
-        private async Task<RazorTextWriter> RenderPageAsync(IRazorPage page,
-                                                            ViewContext context,
-                                                            bool executeViewStart)
+        private async Task<IBufferedTextWriter> RenderPageAsync(IRazorPage page,
+                                                                ViewContext context,
+                                                                bool executeViewStart)
         {
-            using (var bufferedWriter = new RazorTextWriter(context.Writer, context.Writer.Encoding))
+            var razorTextWriter = new RazorTextWriter(context.Writer, context.Writer.Encoding);
+            TextWriter writer = razorTextWriter;
+            IBufferedTextWriter bufferedWriter = razorTextWriter;
+
+            if (EnableInstrumentation)
             {
-                // The writer for the body is passed through the ViewContext, allowing things like HtmlHelpers
-                // and ViewComponents to reference it.
-                var oldWriter = context.Writer;
-                context.Writer = bufferedWriter;
-
-                try
+                writer = _pageExecutionFeature.DecorateWriter(razorTextWriter);
+                bufferedWriter = writer as IBufferedTextWriter;
+                if (bufferedWriter == null)
                 {
-                    if (executeViewStart)
-                    {
-                        // Execute view starts using the same context + writer as the page to render.
-                        await RenderViewStartAsync(context);
-                    }
+                    var message = Resources.FormatInstrumentation_WriterMustBeBufferedTextWriter(
+                        nameof(TextWriter),
+                        _pageExecutionFeature.GetType().FullName,
+                        typeof(IBufferedTextWriter).FullName);
+                    throw new InvalidOperationException(message);
+                }
+            }
 
-                    await RenderPageCoreAsync(page, context);
-                    return bufferedWriter;
-                }
-                finally
+            // The writer for the body is passed through the ViewContext, allowing things like HtmlHelpers
+            // and ViewComponents to reference it.
+            var oldWriter = context.Writer;
+            context.Writer = writer;
+
+            try
+            {
+                if (executeViewStart)
                 {
-                    context.Writer = oldWriter;
+                    // Execute view starts using the same context + writer as the page to render.
+                    await RenderViewStartAsync(context);
                 }
+
+                await RenderPageCoreAsync(page, context);
+                return bufferedWriter;
+            }
+            finally
+            {
+                context.Writer = oldWriter;
+                writer.Dispose();
             }
         }
 
         private async Task RenderPageCoreAsync(IRazorPage page, ViewContext context)
         {
+            page.IsPartial = _isPartial;
             page.ViewContext = context;
+            if (EnableInstrumentation)
+            {
+                page.PageExecutionContext = _pageExecutionFeature.GetContext(page.Path, context.Writer);
+            }
+
             _pageActivator.Activate(page, context);
             await page.ExecuteAsync();
         }
@@ -101,17 +151,21 @@ namespace Microsoft.AspNet.Mvc.Razor
         {
             var viewStarts = _viewStartProvider.GetViewStartPages(_razorPage.Path);
 
+            string layout = null;
             foreach (var viewStart in viewStarts)
             {
+                // Copy the layout value from the previous view start (if any) to the current.
+                viewStart.Layout = layout;
                 await RenderPageCoreAsync(viewStart, context);
-
-                // Copy over interesting properties from the ViewStart page to the entry page.
-                _razorPage.Layout = viewStart.Layout;
+                layout = viewStart.Layout;
             }
+
+            // Copy over interesting properties from the ViewStart page to the entry page.
+            _razorPage.Layout = layout;
         }
 
         private async Task RenderLayoutAsync(ViewContext context,
-                                             RazorTextWriter bodyWriter)
+                                             IBufferedTextWriter bodyWriter)
         {
             // A layout page can specify another layout page. We'll need to continue
             // looking for layout pages until they're no longer specified.

@@ -13,7 +13,6 @@ using Microsoft.Framework.OptionsModel;
 using Microsoft.Framework.Logging;
 using Moq;
 using Xunit;
-using Microsoft.AspNet.PipelineCore;
 
 namespace Microsoft.AspNet.Mvc.Routing
 {
@@ -683,15 +682,9 @@ namespace Microsoft.AspNet.Mvc.Routing
             Assert.Equal(typeof(AttributeRoute).FullName, scope.LoggerName);
             Assert.Equal("AttributeRoute.RouteAsync", scope.Scope);
 
-            // There is a record for IsEnabled and one for WriteCore.
-            Assert.Equal(2, sink.Writes.Count);
+            Assert.Equal(1, sink.Writes.Count);
 
-            var enabled = sink.Writes[0];
-            Assert.Equal(typeof(AttributeRoute).FullName, enabled.LoggerName);
-            Assert.Equal("AttributeRoute.RouteAsync", enabled.Scope);
-            Assert.Null(enabled.State);
-
-            var write = sink.Writes[1];
+            var write = sink.Writes[0];
             Assert.Equal(typeof(AttributeRoute).FullName, write.LoggerName);
             Assert.Equal("AttributeRoute.RouteAsync", write.Scope);
             var values = Assert.IsType<AttributeRouteRouteAsyncValues>(write.State);
@@ -720,15 +713,9 @@ namespace Microsoft.AspNet.Mvc.Routing
             Assert.Equal(typeof(AttributeRoute).FullName, scope.LoggerName);
             Assert.Equal("AttributeRoute.RouteAsync", scope.Scope);
 
-            // There is a record for IsEnabled and one for WriteCore.
-            Assert.Equal(2, sink.Writes.Count);
+            Assert.Equal(1, sink.Writes.Count);
 
-            var enabled = sink.Writes[0];
-            Assert.Equal(typeof(AttributeRoute).FullName, enabled.LoggerName);
-            Assert.Equal("AttributeRoute.RouteAsync", enabled.Scope);
-            Assert.Null(enabled.State);
-
-            var write = sink.Writes[1];
+            var write = sink.Writes[0];
             Assert.Equal(typeof(AttributeRoute).FullName, write.LoggerName);
             Assert.Equal("AttributeRoute.RouteAsync", write.Scope);
             var values = Assert.IsType<AttributeRouteRouteAsyncValues>(write.State);
@@ -1224,7 +1211,7 @@ namespace Microsoft.AspNet.Mvc.Routing
             var services = Mock.Of<IServiceProvider>();
 
             var options = new RouteOptions();
-            var optionsMock = new Mock<IOptionsAccessor<RouteOptions>>();
+            var optionsMock = new Mock<IOptions<RouteOptions>>();
             optionsMock.SetupGet(o => o.Options).Returns(options);
 
             return new DefaultInlineConstraintResolver(services, optionsMock.Object);
@@ -1302,7 +1289,7 @@ namespace Microsoft.AspNet.Mvc.Routing
                     context.IsHandled = MatchingDelegate(context);
                 }
 
-                return Task.FromResult<object>(null);
+                return Task.FromResult(true);
             }
         }
     }

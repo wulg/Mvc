@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-#if NET45
+#if ASPNET50
 
 using System;
 using System.Collections.Generic;
@@ -88,26 +88,6 @@ namespace Microsoft.AspNet.Mvc
         }
 
         [Theory]
-        [InlineData("GET")]
-        [InlineData("POST")]
-        public async Task HttpMethodAttribute_DefaultMethod_IgnoresMethodsWithCustomAttributesAndInvalidMethods(string verb)
-        {
-            // Arrange
-            // Note no action name is passed, hence should return a null action descriptor.
-            var routeContext = new RouteContext(GetHttpContext(verb));
-            routeContext.RouteData.Values = new Dictionary<string, object>
-            {
-                { "controller", "HttpMethodAttributeTests_DefaultMethodValidation" },
-            };
-
-            // Act
-            var result = await InvokeActionSelector(routeContext);
-
-            // Assert
-            Assert.Equal("Index", result.Name);
-        }
-
-        [Theory]
         [InlineData("Put")]
         [InlineData("RPCMethod")]
         [InlineData("RPCMethodWithHttpGet")]
@@ -118,7 +98,7 @@ namespace Microsoft.AspNet.Mvc
 
             // Act
             var result = actionDescriptorProvider.GetDescriptors()
-                                                 .Select(x => x as ReflectedActionDescriptor)
+                                                 .Select(x => x as ControllerActionDescriptor)
                                                  .FirstOrDefault(
                                                             x=> x.ControllerName == "NonAction" &&
                                                                 x.Name == actionName);
@@ -198,21 +178,25 @@ namespace Microsoft.AspNet.Mvc
             var actionCollectionDescriptorProvider = new DefaultActionDescriptorsCollectionProvider(serviceContainer);
             var decisionTreeProvider = new ActionSelectorDecisionTreeProvider(actionCollectionDescriptorProvider);
 
-            var bindingProvider = new Mock<IActionBindingContextProvider>();
+            var actionConstraintProvider = new NestedProviderManager<ActionConstraintProviderContext>(
+                new INestedProvider<ActionConstraintProviderContext>[]
+            {
+                new DefaultActionConstraintProvider(serviceContainer),
+            });
 
             var defaultActionSelector = new DefaultActionSelector(
                 actionCollectionDescriptorProvider, 
                 decisionTreeProvider,
-                bindingProvider.Object,
+                actionConstraintProvider,
                 NullLoggerFactory.Instance);
 
             return await defaultActionSelector.SelectAsync(context);
         }
 
-        private ReflectedActionDescriptorProvider GetActionDescriptorProvider(
+        private ControllerActionDescriptorProvider GetActionDescriptorProvider(
             IActionDiscoveryConventions actionDiscoveryConventions  = null)
         {
-            var controllerAssemblyProvider = new StaticControllerAssemblyProvider();
+            var assemblyProvider = new StaticAssemblyProvider();
 
             if (actionDiscoveryConventions == null)
             {
@@ -223,12 +207,11 @@ namespace Microsoft.AspNet.Mvc
                 actionDiscoveryConventions = new StaticActionDiscoveryConventions(controllerTypes.ToArray());
             }
 
-            return new ReflectedActionDescriptorProvider(
-                                        controllerAssemblyProvider,
+            return new ControllerActionDescriptorProvider(
+                                        assemblyProvider,
                                         actionDiscoveryConventions,
-                                        null,
-                                        new MockMvcOptionsAccessor(),
-                                        Mock.Of<IInlineConstraintResolver>());
+                                        new TestGlobalFilterProvider(),
+                                        new MockMvcOptionsAccessor());
         }
 
         private static HttpContext GetHttpContext(string httpMethod)
@@ -244,14 +227,15 @@ namespace Microsoft.AspNet.Mvc
 
         private class CustomActionConvention : DefaultActionDiscoveryConventions
         {
-            public override IEnumerable<string> GetSupportedHttpMethods(MethodInfo methodInfo)
+            public override IEnumerable<ActionInfo> GetActions([NotNull]MethodInfo methodInfo, [NotNull]TypeInfo controllerTypeInfo)
             {
-                if (methodInfo.Name.Equals("PostSomething", StringComparison.OrdinalIgnoreCase))
+                var actions = new List<ActionInfo>(base.GetActions(methodInfo, controllerTypeInfo));
+                if (methodInfo.Name == "PostSomething")
                 {
-                    return new[] { "POST" };
+                    actions[0].HttpMethods = new string[] { "POST" };
                 }
 
-                return null;
+                return actions;
             }
         }
 
